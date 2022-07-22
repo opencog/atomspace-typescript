@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import ReactFlow, {
+  Controls,
   addEdge,
   FitViewOptions,
   applyNodeChanges,
@@ -51,7 +52,9 @@ function Flow() {
           onConnect={onConnect}
           fitView
           fitViewOptions={fitViewOptions}
-      />
+      >
+        <Controls/>
+      </ReactFlow>
       </div>
   )
 }
