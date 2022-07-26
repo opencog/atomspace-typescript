@@ -4,13 +4,14 @@ import './index.css';
 import Flow from './App';
 import reportWebVitals from './reportWebVitals';
 import TelnetText from "./TelnetText";
+import ClientEx from "./ClientEx";
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
   <React.StrictMode>
-      <TelnetText />
+      <ClientEx />
       <Flow />
   </React.StrictMode>
 );
