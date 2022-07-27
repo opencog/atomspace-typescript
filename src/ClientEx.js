@@ -1,59 +1,92 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import useWebSocket, { ReadyState } from 'react-use-websocket';
+import React, { useState, useEffect } from 'react';
+import useWebSocket from 'react-use-websocket';
 
-//After building novnc/websockify use the following cli command to start the docker:
-//docker run -it --rm -p 7000:80 novnc/websockify 80 localhost:17001
+const SOCKET_URL_ONE = 'ws://localhost:7000';
+const SOCKET_URL_TWO = 'wss://demos.kaazing.com/echo';
+const READY_STATE_OPEN = 1;
 
-export const ClientEx = () => {
-    //Public API that will echo messages sent to it back to the client
-    const [socketUrl, setSocketUrl] = useState('ws://localhost:7000');
-    const [messageHistory, setMessageHistory] = useState([]);
+//Generates the click handler, which returns a promise that resovles to the provided url.
+const generateAsyncUrlGetter =
+    (url, timeout = 2000) =>
+        () => {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve(url);
+                }, timeout);
+            });
+        };
 
-    const { sendMessage, lastMessage, readyState } = useWebSocket(socketUrl);
-
-    useEffect(() => {
-        if (lastMessage !== null) {
-            setMessageHistory((prev) => prev.concat(lastMessage));
+export const UseWebSocketTester = ({}) => {
+    const [currentSocketUrl, setCurrentSocketUrl] = useState(null);
+    const [messageHistory, setMessageHistory] = useState([" "]);
+    const [inputtedMessage, setInputtedMessage] = useState('');
+    const { sendMessage, lastMessage, readyState, getWebSocket } = useWebSocket(
+        currentSocketUrl,
+        {
+            share: true,
+            shouldReconnect: () => false,
         }
-    }, [lastMessage, setMessageHistory]);
-
-    //Doesn't appear to actually attempt a new connection
-    //ie: this doesn't generate any additional console feedback from websockify
-    const handleClickChangeSocketUrl = useCallback(
-        () => setSocketUrl('ws://localhost:7000'),
-        []
     );
 
-    const handleClickSendMessage = useCallback(() => sendMessage('Hello'), []);
+    useEffect(() => {
+        lastMessage && setMessageHistory((prev) => prev.concat(lastMessage.data.value));
+        if(lastMessage != null){
+            console.log('useEffect: '+lastMessage.data)
+        }
+    }, [lastMessage]);
 
-    const connectionStatus = {
-        [ReadyState.CONNECTING]: 'Connecting',
-        [ReadyState.OPEN]: 'Open',
-        [ReadyState.CLOSING]: 'Closing',
-        [ReadyState.CLOSED]: 'Closed',
-        [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
+
+
+    const readyStateString = {
+        0: 'CONNECTING',
+        1: 'OPEN',
+        2: 'CLOSING',
+        3: 'CLOSED',
     }[readyState];
 
     return (
         <div>
-            <button onClick={handleClickChangeSocketUrl}>
-                Click Me to change Socket Url
+            Whatever you send will be echoed from the Server
+            <div>
+                <input
+                    type={'text'}
+                    value={inputtedMessage}
+                    onChange={(e) => setInputtedMessage(e.target.value)}
+                />
+                <button
+                    onClick={() => {
+                        sendMessage(inputtedMessage);
+                        console.log('sent: ' + inputtedMessage.toLocaleString());
+                    }}
+                    disabled={readyState !== READY_STATE_OPEN}
+                >
+                    Send
+                </button>
+            </div>
+            Select Socket Server:
+            <br />
+            <button
+                onClick={() =>
+                    setCurrentSocketUrl(generateAsyncUrlGetter(SOCKET_URL_ONE))
+                }
+                disabled={currentSocketUrl === SOCKET_URL_ONE}
+            >
+                {SOCKET_URL_ONE}
             </button>
             <button
-                onClick={handleClickSendMessage}
-                disabled={readyState !== ReadyState.OPEN}
+                onClick={() =>
+                    setCurrentSocketUrl(generateAsyncUrlGetter(SOCKET_URL_TWO))
+                }
+                disabled={currentSocketUrl === SOCKET_URL_TWO}
             >
-                Click Me to send 'Hello'
+                {SOCKET_URL_TWO}
             </button>
-            <span>The WebSocket is currently {connectionStatus}</span>
-            {lastMessage ? <span>Last message: {lastMessage.data}</span> : null}
-            <ul>
-                {messageHistory.map((message, idx) => (
-                    <span key={idx}>{message ? message.data : null}</span>
-                ))}
-            </ul>
+            <br />
+            ReadyState: {readyStateString}
+            <br />
+            MessageHistory: {messageHistory.join(', ')}
         </div>
     );
 };
 
-export default ClientEx
+export default UseWebSocketTester
