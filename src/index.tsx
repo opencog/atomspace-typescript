@@ -5,15 +5,17 @@ import Flow from './App';
 import reportWebVitals from './reportWebVitals';
 import TelnetText from "./TelnetText";
 import ClientEx from "./ClientEx";
+import ClientExTwo from "./ClientExTwo";
+import ClientTrois from "./ClientTrois";
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
-  <React.StrictMode>
-      <ClientEx />
-      <Flow />
-  </React.StrictMode>
+
+      <ClientTrois />
+
+
 );
 
 // If you want to start measuring performance in your app, pass a function
