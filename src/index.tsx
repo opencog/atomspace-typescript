@@ -3,17 +3,14 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import Flow from './App';
 import reportWebVitals from './reportWebVitals';
-import TelnetText from "./TelnetText";
-import ClientEx from "./ClientEx";
-import ClientExTwo from "./ClientExTwo";
-import ClientTrois from "./ClientTrois";
+import SocketClient from "./SocketClient";
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
 
-      <ClientTrois />
+        <SocketClient />
 
 
 );

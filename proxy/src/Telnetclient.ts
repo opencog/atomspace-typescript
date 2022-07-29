@@ -5,6 +5,8 @@ process.on('unhandledRejection', error => {
     throw error
 });
 
+
+
 export async function run(cmd:any) {
     let connection:Telnet = new Telnet()
 
@@ -22,11 +24,13 @@ export async function run(cmd:any) {
         // handle the throw (timeout)
     }
 
-    let res = await connection.send(`${cmd}`, {
+    await connection.send(`json`, {
         waitfor: "\n",
     });
 
-
+    let res = await connection.send(`${cmd}`, {
+        waitfor: "\n",
+    });
 
     await connection.end();
 
