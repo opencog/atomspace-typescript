@@ -33,35 +33,10 @@ export const SocketClient = ()=> {
         PUT_ATOM = "put_atom",
         ERROR = "error",
     }
-    const [command, setCommand] = React.useState<LastCommand>(LastCommand.NO_CMD);
-
+    const [curCmdState, setCurCmdState] = useState(LastCommand.NO_CMD)
+    let curCmd = LastCommand.NO_CMD
     let nodeCount = 3;
-
-    const sendMessage = (sendMessage: string) => {
-        var data = {msg: sendMessage}
-        setConsoleLines(state => [ ...state,"Sent: " + data.msg])
-        console.log("Sent: " + data.msg)
-        setSendReadyState(false)
-        socket.emit('SendEvent',data);
-    }
-
-    const getAtoms = ()=>{
-        setCommand(LastCommand.GET_ATOMS);
-        sendMessage('AtomSpace.getAtoms("Atom")');
-    }
-
-    const trimTrailJson = (res: String) => {
-        console.log(res.substring(res.length-6))
-        if(res.substring(res.length-6).includes("json")) {
-            return res.substring(0, res.length - 6)
-        }
-        else {
-            return res
-        }
-    }
-
     const bottomRef = React.useRef<HTMLDivElement>(null);
-
 
     const initialNodes: Node[] = [
         { id: '1', data: { label: "Node 1"}, position: { x: 5, y: 5 } },
@@ -100,11 +75,45 @@ export const SocketClient = ()=> {
         reactFlowInstance.addNodes(newNode)
     }, []);
 
+    const makeAtom = useCallback((atom: AtomEx) => {
+        let newNode = { id: `${nodeCount}`, data: { label: `Name: ${atom.name}, type: ${atom.type}` }, position: { x: 100, y: 100 } };
+        nodeCount++;
+        reactFlowInstance.addNodes(newNode)
+    }, []);
+
+    const sendMessage = (sendMessage: string) => {
+        var data = {msg: sendMessage}
+        setConsoleLines(state => [ ...state,"Sent: " + data.msg])
+        console.log("Sent: " + data.msg)
+        setSendReadyState(false)
+        socket.emit('SendEvent',data);
+    }
+
+    const getAtoms = ()=>{
+        setCurCmdState(LastCommand.GET_ATOMS);
+        sendMessage('AtomSpace.getAtoms("Atom")');
+    }
+
+    const trimTrailJson = (res: string) => {
+        console.log(`trim "${res.substring(res.length-6)}"?`)
+        if(res.substring(res.length-6).includes("json")) {
+            return res.substring(0, res.length - 6)
+        }
+        else {
+            return res
+        }
+    }
+
+    interface AtomEx {
+        type: string;
+        name: number;
+    }
+
     useEffect(() => {
         socket.on('connect', () => {
-            console.log()
+            console.log("Connected")
             setIsConnected(true);
-            setSendReadyState(true)
+            setSendReadyState(true);
         });
 
         socket.on('disconnect', () => {
@@ -115,22 +124,26 @@ export const SocketClient = ()=> {
             //console.log("Received: " + ReceiveEvent.msg)
             setConsoleLines(state => [ ...state, "Rec: " + ReceiveEvent.msg])
             bottomRef.current?.scrollIntoView();
-            setSendReadyState(true)
-            console.log(`Command ${command}`)
-            switch(command){
+            setSendReadyState(true);
+            console.log(`Current Command: ${curCmdState}`);
+            switch(curCmdState){
                 case LastCommand.GET_ATOMS: {
-                    console.log(trimTrailJson(ReceiveEvent.msg))
+                    let trimmed = trimTrailJson(ReceiveEvent.msg)
+                    console.log(trimmed);
+                    let newAtom: AtomEx[] = JSON.parse(trimmed)
+                    makeAtom(newAtom[0]);
+                    setCurCmdState(LastCommand.NO_CMD);
                     break
                 }
             }
-            setCommand(LastCommand.NO_CMD);
+
         });
 
         return () => {
             socket.off('connect');
             socket.off('disconnect');
         };
-    }, [command,consoleLines]);
+    }, [curCmdState]);
 
     return (
         <div>

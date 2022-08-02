@@ -33,6 +33,8 @@ const io = new Server(4000, {
     },
 });
 
+let responseCount = 0
+
 io.on("connection", (socket) => {
     console.log("someone connected");
 
@@ -43,5 +45,7 @@ io.on("connection", (socket) => {
             msg: cogResponse
         }
         socket.emit('RecEvent', message);
+        console.log(`Returned data ${responseCount}`)
+        responseCount++;
     });
 });
