@@ -16,9 +16,9 @@ import ReactFlow, {
     EdgeChange,
     FitViewOptions,
     Node,
-    NodeChange, ReactFlowProvider, useReactFlow
+    NodeChange, ReactFlowInstance, ReactFlowProvider, useReactFlow
 } from "react-flow-renderer";
-
+import { getLayoutedElements } from "./Layout";
 const socket = io("http://localhost:4000");
 
 export const SocketClient = ()=> {
@@ -39,12 +39,9 @@ export const SocketClient = ()=> {
     const bottomRef = React.useRef<HTMLDivElement>(null);
 
     const initialNodes: Node[] = [
-        { id: '1', data: { label: "Node 1"}, position: { x: 5, y: 5 } },
-        { id: '2', data: { label: 'Node 2' }, position: { x: 5, y: 100 } },
     ];
 
     const initialEdges: Edge[] = [
-        { id: 'e1-2', source: '1', target: '2'},
     ];
 
     const fitViewOptions: FitViewOptions = {
@@ -52,19 +49,28 @@ export const SocketClient = ()=> {
     }
 
 
-    const [nodes, setNodes] = useState<Node[]>(initialNodes);
-    const [edges, setEdges] = useState<Edge[]>(initialEdges);
+    const [nodes, setNodesState] = useState<Node[]>(initialNodes);
+    const [edges, setEdgesState] = useState<Edge[]>(initialEdges);
 
+    const setNodes = (nodes: Node[]) => {
+        const layoutedElements = getLayoutedElements(nodes, edges);
+        setNodesState(layoutedElements.nodes);
+    }
+
+    const setEdges = (edges: Edge[]) => {
+        const layoutedElements = getLayoutedElements(nodes, edges);
+        setEdgesState(layoutedElements.edges);
+    }
     const onNodesChange = useCallback(
-        (changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)),
+        (changes: NodeChange[]) => setNodes(applyNodeChanges(changes, nodes)),
         [setNodes]
     );
     const onEdgesChange = useCallback(
-        (changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+        (changes: EdgeChange[]) => setEdges(applyEdgeChanges(changes, edges)),
         [setEdges]
     );
     const onConnect = useCallback(
-        (connection: Connection) => setEdges((eds) => addEdge(connection, eds)),
+        (connection: Connection) => setEdges(addEdge(connection, edges)),
         [setEdges]
     );
 
@@ -78,8 +84,19 @@ export const SocketClient = ()=> {
     const makeAtom = useCallback((atom: AtomEx) => {
         let newNode = { id: `${nodeCount}`, data: { label: `Name: ${atom.name}, type: ${atom.type}` }, position: { x: 100, y: 100 } };
         nodeCount++;
-        reactFlowInstance.addNodes(newNode)
+        reactFlowInstance.addNodes(newNode);
     }, []);
+
+    const setAtoms = useCallback((atoms: AtomEx[]) => {
+        let newNodes: Node[] = [];
+        atoms.forEach((atom:AtomEx, index:number, array:AtomEx[])=>{
+            let newNode = { id: `${index}`, data: { label: `Name: ${atom.name}, type: ${atom.type}` }, position: { x: 100, y: 100 } };
+            newNodes.push(newNode);
+        });
+        nodeCount++;
+        reactFlowInstance.setNodes(newNodes);
+    }, []);
+
 
     const sendMessage = (sendMessage: string) => {
         var data = {msg: sendMessage}
@@ -108,8 +125,7 @@ export const SocketClient = ()=> {
         type: string;
         name: number;
     }
-
-    useEffect(() => {
+    useEffect(()=>{
         socket.on('connect', () => {
             console.log("Connected")
             setIsConnected(true);
@@ -119,7 +135,11 @@ export const SocketClient = ()=> {
         socket.on('disconnect', () => {
             setIsConnected(false);
         });
-
+        // Move this outsite of useEffect
+    },[]);
+    useEffect(() => {
+        
+        socket.removeListener('RecEvent');
         socket.on('RecEvent', function (ReceiveEvent) {
             //console.log("Received: " + ReceiveEvent.msg)
             setConsoleLines(state => [ ...state, "Rec: " + ReceiveEvent.msg])
@@ -130,19 +150,15 @@ export const SocketClient = ()=> {
                 case LastCommand.GET_ATOMS: {
                     let trimmed = trimTrailJson(ReceiveEvent.msg)
                     console.log(trimmed);
-                    let newAtom: AtomEx[] = JSON.parse(trimmed)
-                    makeAtom(newAtom[0]);
+                    let newAtoms: AtomEx[] = JSON.parse(trimmed)
+                    setAtoms(newAtoms);
+                    // makeAtom(newAtom[0]);
                     setCurCmdState(LastCommand.NO_CMD);
                     break
                 }
             }
-
         });
 
-        return () => {
-            socket.off('connect');
-            socket.off('disconnect');
-        };
     }, [curCmdState]);
 
     return (
