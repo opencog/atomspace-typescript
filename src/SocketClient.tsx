@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, CSSProperties} from 'react';
 import io from 'socket.io-client';
 import Table from "@mui/material/Table";
 import TableHead from "@mui/material/TableHead";
@@ -19,6 +19,9 @@ import ReactFlow, {
     NodeChange, ReactFlowInstance, ReactFlowProvider, useReactFlow
 } from "react-flow-renderer";
 import { getLayoutedElements } from "./Layout";
+import { nodeTypes } from "./Nodes";
+import "./nodeStyles.css"
+
 const socket = io("http://localhost:4000");
 
 export const SocketClient = ()=> {
@@ -32,6 +35,8 @@ export const SocketClient = ()=> {
         GET_ATOMS = "get_atoms",
         PUT_ATOM = "put_atom",
         ERROR = "error",
+        GET_NODES = "get_nodes",
+        GET_LINKS = "get_links"
     }
     const [curCmdState, setCurCmdState] = useState(LastCommand.NO_CMD)
     let curCmd = LastCommand.NO_CMD
@@ -81,16 +86,38 @@ export const SocketClient = ()=> {
         reactFlowInstance.addNodes(newNode)
     }, []);
 
-    const makeAtom = useCallback((atom: AtomEx) => {
+    const makeAtom = useCallback((atom: AtomBase) => {
         let newNode = { id: `${nodeCount}`, data: { label: `Name: ${atom.name}, type: ${atom.type}` }, position: { x: 100, y: 100 } };
         nodeCount++;
         reactFlowInstance.addNodes(newNode);
     }, []);
 
-    const setAtoms = useCallback((atoms: AtomEx[]) => {
+    const setAtoms = useCallback((atoms: AtomBase[]) => {
+        let linkAtoms = atoms.filter(atom => atom.type.includes("Link"))
+        let nodeAtoms = atoms.filter(atom => atom.type.includes("Node"))
         let newNodes: Node[] = [];
-        atoms.forEach((atom:AtomEx, index:number, array:AtomEx[])=>{
-            let newNode = { id: `${index}`, data: { label: `Name: ${atom.name}, type: ${atom.type}` }, position: { x: 100, y: 100 } };
+        let newEdges: Edge[] = [];
+        nodeAtoms.forEach((atom:AtomBase, index:number, array:AtomBase[])=>{
+            let newNode = { id: `${atom.name}`, data: { label: `Name: ${atom.name}, type: ${atom.type}` }, position: { x: 100, y: 100 }};
+            newNodes.push(newNode);
+        });
+        (linkAtoms as AtomLink[]).forEach((link:AtomLink, index:number, array:AtomBase[])=>{
+            let linkId = `${link.type}:${link.outgoing[0].name},${link.outgoing[1].name}`
+            let newNode = { id: linkId, type: "circle" ,data: { label: `${link.type}, Links: ${link.outgoing.length}` }, position: { x: 100, y: 100 }};
+            link.outgoing.forEach(linkNode => {
+                let newEdge = { id: `L${linkId}`, source: linkId, target: `${linkNode.name}`};
+                newEdges.push(newEdge);
+                })
+            newNodes.push(newNode);
+        });
+        reactFlowInstance.setNodes(newNodes);
+        reactFlowInstance.setEdges(newEdges);
+    }, []);
+
+    const setLinks = useCallback((atoms: AtomBase[]) => {
+        let newNodes: Node[] = [];
+        atoms.forEach((atom:AtomBase, index:number, array:AtomBase[])=>{
+            let newNode = { id: `${index}`, type: "circle" ,data: { label: `Name: ${atom.name}, type: ${atom.type}` }, position: { x: 100, y: 100 }};
             newNodes.push(newNode);
         });
         nodeCount++;
@@ -121,10 +148,17 @@ export const SocketClient = ()=> {
         }
     }
 
-    interface AtomEx {
+    interface AtomBase {
         type: string;
-        name: number;
+        name?: string;
+        outgoing?: AtomBase[];
     }
+    interface AtomLink extends AtomBase{
+        type: string;
+        outgoing: AtomBase[];
+    }
+
+
     useEffect(()=>{
         socket.on('connect', () => {
             console.log("Connected")
@@ -137,8 +171,8 @@ export const SocketClient = ()=> {
         });
         // Move this outsite of useEffect
     },[]);
+
     useEffect(() => {
-        
         socket.removeListener('RecEvent');
         socket.on('RecEvent', function (ReceiveEvent) {
             //console.log("Received: " + ReceiveEvent.msg)
@@ -150,8 +184,9 @@ export const SocketClient = ()=> {
                 case LastCommand.GET_ATOMS: {
                     let trimmed = trimTrailJson(ReceiveEvent.msg)
                     console.log(trimmed);
-                    let newAtoms: AtomEx[] = JSON.parse(trimmed)
+                    let newAtoms: AtomBase[] = JSON.parse(trimmed)
                     setAtoms(newAtoms);
+
                     // makeAtom(newAtom[0]);
                     setCurCmdState(LastCommand.NO_CMD);
                     break
@@ -241,6 +276,7 @@ export const SocketClient = ()=> {
                     onConnect={onConnect}
                     fitView
                     fitViewOptions={fitViewOptions}
+                    nodeTypes={nodeTypes}
                 >
                     <Controls/>
                 </ReactFlow>

@@ -1,0 +1,43 @@
+.triangle-node {
+    background-color: "#9ca8b3";
+    width: 0px;
+    height: 0px;
+    border-style: inset;
+    border-width: 0 50px 80px 50px;
+    border-color: transparent transparent #9ca8b3 transparent;
+    float: left;
+    transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -webkit-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+}
+
+.triangle-node-text {
+    text-align: center;
+    top: 40px;
+    left: -23px;
+    position: relative;
+    width: 46px;
+    height: 46px;
+    margin: 0px;
+}
+
+.circle-node {
+    width: 10px;
+    height: 10px;
+    padding: 0px;
+    overflow: visible;
+
+}
+
+.circle-node-text {
+    font-size: small;
+    border: 1px solid transparent;
+    text-align: center;
+    width: 15vw;
+    position: relative;
+    left: calc(-7.5vw + 50%);
+    top: -25px;
+
+}

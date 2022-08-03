@@ -3,7 +3,7 @@ import {run} from "./Telnetclient";
 
 
 process.env.TARGET_PORT = "17001";
-process.env.TARGET_HOST = "192.168.10.2";
+process.env.TARGET_HOST = "localhost";
 
 const express = require( "express" );
 const app = express();
