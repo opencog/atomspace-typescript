@@ -34,7 +34,7 @@ const CircleNode = ({ data }) => {
             <Handle
                 type="target"
                 position="top"
-                style={{ borderRadius: 10,  width: 10, height: 10 , top: 1}}
+                style={{ borderRadius: 0}}
             />
             <div id={data.id} className="circle-node-text">
                 {data.label}
@@ -42,7 +42,7 @@ const CircleNode = ({ data }) => {
             <Handle
                 type="source"
                 position="bottom"
-                style={{ borderRadius: 10, width: 10, height: 10 }}
+                style={{ borderRadius: 0}}
             />
         </div>
     );

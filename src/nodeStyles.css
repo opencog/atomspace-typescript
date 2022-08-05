@@ -24,20 +24,30 @@
 }
 
 .circle-node {
-    width: 10px;
-    height: 10px;
+    width: 35px;
+    height: 35px;
     padding: 0px;
     overflow: visible;
-
+    border: 1px solid black;
+    border-radius: 30px;
 }
 
 .circle-node-text {
-    font-size: small;
+    overflow-wrap: break-word;
+    font-size: 6px;
+    text-align: center;
+    position: relative;
+    top: 10px;
+
+
+}
+.unused-example-text {
+    font-size: 6em;
     border: 1px solid transparent;
     text-align: center;
     width: 15vw;
     position: relative;
     left: calc(-7.5vw + 50%);
-    top: -25px;
+
 
 }

@@ -86,12 +86,6 @@ export const SocketClient = ()=> {
         reactFlowInstance.addNodes(newNode)
     }, []);
 
-    const makeAtom = useCallback((atom: AtomBase) => {
-        let newNode = { id: `${nodeCount}`, data: { label: `Name: ${atom.name}, type: ${atom.type}` }, position: { x: 100, y: 100 } };
-        nodeCount++;
-        reactFlowInstance.addNodes(newNode);
-    }, []);
-
     const setAtoms = useCallback((atoms: AtomBase[]) => {
         let linkAtoms = atoms.filter(atom => atom.type.includes("Link"))
         let nodeAtoms = atoms.filter(atom => atom.type.includes("Node"))
@@ -104,8 +98,8 @@ export const SocketClient = ()=> {
         (linkAtoms as AtomLink[]).forEach((link:AtomLink, index:number, array:AtomBase[])=>{
             let linkId = `${link.type}:${link.outgoing[0].name},${link.outgoing[1].name}`
             let newNode = { id: linkId, type: "circle" ,data: { label: `${link.type}, Links: ${link.outgoing.length}` }, position: { x: 100, y: 100 }};
-            link.outgoing.forEach(linkNode => {
-                let newEdge = { id: `L${linkId}`, source: linkId, target: `${linkNode.name}`};
+            link.outgoing.forEach((linkNode, index:number )=> {
+                let newEdge = { id: `${index}${linkId}`, source: linkId, target: `${linkNode.name}`};
                 newEdges.push(newEdge);
                 })
             newNodes.push(newNode);
@@ -136,6 +130,11 @@ export const SocketClient = ()=> {
     const getAtoms = ()=>{
         setCurCmdState(LastCommand.GET_ATOMS);
         sendMessage('AtomSpace.getAtoms("Atom")');
+    }
+
+    const getLinks = ()=>{
+        setCurCmdState(LastCommand.GET_LINKS);
+        sendMessage('AtomSpace.getAtoms("Link")');
     }
 
     const trimTrailJson = (res: string) => {
@@ -191,6 +190,15 @@ export const SocketClient = ()=> {
                     setCurCmdState(LastCommand.NO_CMD);
                     break
                 }
+                case LastCommand.GET_LINKS: {
+                    let trimmed = trimTrailJson(ReceiveEvent.msg)
+                    console.log(trimmed);
+                    
+
+                    // makeAtom(newAtom[0]);
+                    setCurCmdState(LastCommand.NO_CMD);
+                    break
+                }
             }
         });
 
@@ -203,7 +211,7 @@ export const SocketClient = ()=> {
                     <Table sx={{ minWidth: 980}} size="small" aria-label="a dense table">
                         <TableHead sx = {{py:0}}>
                             <TableRow>
-                                <TableCell>telnet output</TableCell>
+                                <TableCell>telnet output - Connected: {String(isConnected)}</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -258,13 +266,11 @@ export const SocketClient = ()=> {
                     MakeNodes
                 </button>
                 <button
-                    onClick={() => {
-                        sendMessage(inputtedMessage);
-                    }}
+                    onClick={getLinks}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
-                    Button 4
+                    GetLinks
                 </button>
             </div>
             <div style={{ height: 600, border: '3px solid rgba(0, 0, 0, .85)' , marginTop: 5}}>
