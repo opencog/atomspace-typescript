@@ -1,16 +1,19 @@
 import React from "react";
 import { Handle } from "react-flow-renderer";
 
+
+
 const RectangleNode = ({ data }) => {
     return (
-        <div style={{ background: "#9ca8b3", padding: "14px" }}>
+        <div className={getNodeSuperType(data.atomType)}>
             <Handle
                 type="target"
                 position="left"
                 id={`${data.id}.left`}
                 style={{ borderRadius: 0 }}
             />
-            <div id={data.id}>{data.label}</div>
+            <div>{data.label}</div>
+            <div>{data.info}</div>
             <Handle
                 type="source"
                 position="right"
@@ -30,7 +33,7 @@ const RectangleNode = ({ data }) => {
 const CircleNode = ({ data }) => {
     return (
 
-        <div className="circle-node" >
+        <div className={getLinkSuperType(data.atomType)}>
             <Handle
                 type="target"
                 position="top"
@@ -48,33 +51,6 @@ const CircleNode = ({ data }) => {
     );
 };
 
-const TriangleNode = ({ data }) => {
-    return (
-        <div className="triangle-node">
-            <Handle
-                type="target"
-                position="top"
-                id={`${data.id}.top`}
-                style={{ borderRadius: 0 }}
-            />
-            <div id={data.id} className="triangle-node-text">
-                {data.label}
-            </div>
-            <Handle
-                type="source"
-                position="bottom"
-                id={`${data.id}.bottom1`}
-                style={{ left: "30%", borderRadius: 0 }}
-            />
-            <Handle
-                type="source"
-                position="bottom"
-                id={`${data.id}.bottom2`}
-                style={{ left: "70%", borderRadius: 0 }}
-            />
-        </div>
-    );
-};
 
 export const TextNode = ({ data }) => {
     return (
@@ -87,6 +63,133 @@ export const TextNode = ({ data }) => {
 export const nodeTypes = {
     circle: CircleNode,
     rectangle: RectangleNode,
-    triangle: TriangleNode,
     text: TextNode
 };
+
+const getNodeSuperType = (typeName) => {
+    let superTypeName = "Node"
+
+    switch(typeName) {
+        case "ConceptNode":
+            superTypeName = "ConceptNode";
+            break;
+        case "NumberNode":
+            superTypeName = "NumberNode";
+            break;
+        case "PredicateNode":
+        //PredicateNode subtypes
+        case "LexicalNode":
+        case "Direction":
+        case "ConnectorDir":
+        case "Bond":
+        case "TypeNode":
+        case "TagNode":
+        case "TypeInhNode":
+        case "TypeCoInhNode":
+        case "DefinedTypeNode":
+        case "StorageNode":
+        case "PostgresStorageNode":
+        case "FileStorageNode":
+        case "MonoStorageNode":
+        case "RocksStorageNode":
+        case "CogSimpleStorageNode":
+        case "CogStorageNode":
+        case "ItemClassNode":
+        case "DefinedPredicateNode":
+        case "GroundedPredicateNode":
+            superTypeName = "PredicateNode"
+            break;
+        case "AnyNode":
+        //AnyNode subtypes
+        case "VariableNode":
+        case "GlobNode":
+            superTypeName = "AnyNode"
+            break;
+        case "AnchorNode":
+            superTypeName = "AnchorNode"
+            break;
+        case "ProcedureNode":
+        //ProcedureNode subtypes
+        case "GroundedProcedureNode":
+        case "GroundedSchemaNode":
+        //case "GroundedPredicateNode":
+        case "SchemaNode":
+        case "DefinedSchemaNode":
+        //case "GroundedSchemaNode":
+            superTypeName = "ProcedureNode"
+            break;
+        default:
+            superTypeName = "Unknown"
+    }
+    return superTypeName
+}
+
+const getLinkSuperType = (typeName) => {
+    let superTypeName = "Link";
+
+    switch(typeName) {
+        case "OrderedLink":
+        case "ListLink":
+        case "SetDifferenceLink":
+        case "MemberLink":
+        case "SubsetLink":
+        case "ContextLink":
+        case "TrueLink":
+        case "FalseLink":
+        case "SequentialAndLink":
+        case "SequentialOrLink":
+        case "ChoiceLink":
+        case "Section":
+        case "TagLink":
+        case "QuoteLink":
+        case "UnquoteLink":
+        case "LocalQuoteLink":
+        case "DontExecLink":
+        case "ReplacementLink":
+        case "FreeLink":
+        case "IntervalLink":
+        case "ImplicationLink":
+        case "InheritanceLink":
+        case "AssociativeLink":
+        case "ExecutionLink":
+            superTypeName = "OrderedLink";
+            break;
+        case "UnorderedLink":
+            superTypeName = "UnorderedLink";
+            break;
+        case "EvaluatableLink":
+            superTypeName = "EvaluatableLink";
+            break;
+        case "NumericOutputLink":
+            superTypeName = "NumericOutputLink";
+            break;
+        case "BooleanLink":
+            superTypeName = "BooleanLink";
+            break;
+        case "NumericInputLink":
+            superTypeName = "NumericInputLink";
+            break;
+        case "TypeInputLink":
+            superTypeName = "TypeInputLink";
+            break;
+        case "TypeOutputLink":
+            superTypeName = "TypeOutputLink";
+            break;
+        case "AlphaConvertibleLink":
+            superTypeName = "AlphaConvertibleLink";
+            break;
+        case "CollectionLink":
+            superTypeName = "CollectionLink";
+            break;
+        case "ForeignAst":
+            superTypeName = "ForeignAst";
+            break;
+        case "DirectlyEvaluatableLink":
+            superTypeName = "DirectlyEvaluatableLink";
+            break;
+        default:
+            superTypeName = "Unknown"
+    }
+    console.log("circle-node " + superTypeName)
+    return "circle-node " + superTypeName;
+}

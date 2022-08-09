@@ -21,6 +21,7 @@ import ReactFlow, {
 import { getLayoutedElements } from "./Layout";
 import { nodeTypes } from "./Nodes";
 import "./nodeStyles.css"
+import "./edgeStyles.css"
 
 const socket = io("http://localhost:4000");
 
@@ -92,14 +93,14 @@ export const SocketClient = ()=> {
         let newNodes: Node[] = [];
         let newEdges: Edge[] = [];
         nodeAtoms.forEach((atom:AtomBase, index:number, array:AtomBase[])=>{
-            let newNode = { id: `${atom.name}`, data: { label: `Name: ${atom.name}, type: ${atom.type}` }, position: { x: 100, y: 100 }};
+            let newNode = { id: `${atom.name}`, type: "rectangle", data: { label: `Name: ${atom.name}`, info: `Type: ${atom.type}`, atomType: atom.type }, position: { x: 100, y: 100 }};
             newNodes.push(newNode);
         });
         (linkAtoms as AtomLink[]).forEach((link:AtomLink, index:number, array:AtomBase[])=>{
             let linkId = `${link.type}:${link.outgoing[0].name},${link.outgoing[1].name}`
-            let newNode = { id: linkId, type: "circle" ,data: { label: `${link.type}, Links: ${link.outgoing.length}` }, position: { x: 100, y: 100 }};
+            let newNode = { id: linkId, type: "circle" ,data: { label: `${link.type}, Links: ${link.outgoing.length}`, atomType: link.type }, position: { x: 100, y: 100 }};
             link.outgoing.forEach((linkNode, index:number )=> {
-                let newEdge = { id: `${index}${linkId}`, source: linkId, target: `${linkNode.name}`};
+                let newEdge = { id: `${index}${linkId}`, source: linkId, target: `${linkNode.name}`, className: `${link.type}Edge` };
                 newEdges.push(newEdge);
                 })
             newNodes.push(newNode);

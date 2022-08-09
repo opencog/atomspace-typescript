@@ -1,0 +1,25 @@
+/* Link Edge Styles */
+/* ----------- */
+.OrderedLinkEdge {
+    stroke: red;
+}
+
+.UnorderedLinkEdge {
+    stroke: purple;
+}
+
+.EvaluatableLinkEdge {
+    stroke: aquamarine;
+}
+
+.NumericOutputLinkEdge {
+    stroke: pink;
+}
+
+.TypeInputLinkEdge {
+    stroke: orange;
+}
+
+.ListLink {
+    stroke: cyan;
+}
