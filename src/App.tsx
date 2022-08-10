@@ -100,7 +100,7 @@ export const App = ()=> {
             let linkId = `${link.type}:${link.outgoing[0].name},${link.outgoing[1].name}`
             let newNode = { id: linkId, type: "circle" ,data: { label: `${link.type}, Links: ${link.outgoing.length}`, atomType: link.type }, position: { x: 100, y: 100 }};
             link.outgoing.forEach((linkNode, index:number )=> {
-                let newEdge = { id: `${index}${linkId}`, type: "colored", source: linkId, target: `${linkNode.name}`, atomType: link.type };
+                let newEdge = { id: `${index}${linkId}`, type: "colored", source: linkId, target: `${linkNode.name}`, style:TypesClasses["LinkList"].class };
                 newEdges.push(newEdge);
                 })
             newNodes.push(newNode);
@@ -295,3 +295,11 @@ function FlowWithProvider() {
 }
 
 export default FlowWithProvider;
+
+const TypesClasses = {
+    "LinkList": {
+        class: {
+            stroke:"blue",
+        },
+    }
+}

@@ -8,7 +8,7 @@ const RectangleNode = ({ data }: any) => {
         <div className={getNodeSuperType(data.atomType)} >
             <Handle
                 type="target"
-                position={Position.Left}
+                position={Position.Top}
                 id={`${data.id}.left`}
                 style={{ borderRadius: 0 }}
             />

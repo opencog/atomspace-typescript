@@ -1,40 +1,29 @@
 import React from 'react';
 import { getBezierPath, getMarkerEnd } from 'react-flow-renderer';
-import {TextNode} from "./Nodes";
 
-
-export default function CustomEdge ({
-                        id,
-                        source,
-                        target,
-                        sourcePosition,
-                        targetPosition,
-                        style = {},
-                        data,
-                        markerEnd,
-                    })  {
+export default function CustomEdge({
+                                       id,
+                                       source,
+                                       target,
+                                       data,
+                                   }) {
     const edgePath = getBezierPath({
         source,
-        sourcePosition,
         target,
-        targetPosition,
     });
 
     return (
         <>
             <path
                 id={id}
-                style={style}
-                className={getLinkSuperType(data.atomType)}
+                style={{stroke: "red"}}
                 d={edgePath}
-                markerEnd={markerEnd}
             />
         </>
     );
 }
-
 const getLinkSuperType = (typeName) => {
-    let superTypeName;
+    let superTypeName = "Link";
 
     switch(typeName) {
         case "OrderedLink":
@@ -99,6 +88,5 @@ const getLinkSuperType = (typeName) => {
         default:
             superTypeName = "Unknown"
     }
-    console.log(superTypeName + "Edge")
-    return superTypeName+"Edge";
+    return "circle-node " + superTypeName;
 }
