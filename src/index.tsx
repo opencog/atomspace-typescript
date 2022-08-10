@@ -3,14 +3,14 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import Flow from './App';
 import reportWebVitals from './reportWebVitals';
-import SocketClient from "./SocketClient";
+import App from "./App";
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
 
-        <SocketClient />
+        <App />
 
 
 );

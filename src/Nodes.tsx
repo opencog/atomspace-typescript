@@ -1,14 +1,14 @@
 import React from "react";
-import { Handle } from "react-flow-renderer";
+import {Handle, Position} from "react-flow-renderer";
 
 
 
-const RectangleNode = ({ data }) => {
+const RectangleNode = ({ data }: any) => {
     return (
-        <div className={getNodeSuperType(data.atomType)}>
+        <div className={getNodeSuperType(data.atomType)} >
             <Handle
                 type="target"
-                position="left"
+                position={Position.Left}
                 id={`${data.id}.left`}
                 style={{ borderRadius: 0 }}
             />
@@ -16,13 +16,13 @@ const RectangleNode = ({ data }) => {
             <div>{data.info}</div>
             <Handle
                 type="source"
-                position="right"
+                position={Position.Right}
                 id={`${data.id}.right1`}
                 style={{ top: "30%", borderRadius: 0 }}
             />
             <Handle
                 type="source"
-                position="right"
+                position={Position.Right}
                 id={`${data.id}.right2`}
                 style={{ top: "70%", borderRadius: 0 }}
             />
@@ -30,13 +30,12 @@ const RectangleNode = ({ data }) => {
     );
 };
 
-const CircleNode = ({ data }) => {
+const CircleNode = ({ data }: any) => {
     return (
-
         <div className={getLinkSuperType(data.atomType)}>
             <Handle
                 type="target"
-                position="top"
+                position={Position.Top}
                 style={{ borderRadius: 0}}
             />
             <div id={data.id} className="circle-node-text">
@@ -44,7 +43,7 @@ const CircleNode = ({ data }) => {
             </div>
             <Handle
                 type="source"
-                position="bottom"
+                position={Position.Bottom}
                 style={{ borderRadius: 0}}
             />
         </div>
@@ -52,7 +51,8 @@ const CircleNode = ({ data }) => {
 };
 
 
-export const TextNode = ({ data }) => {
+
+export const TextNode = ({ data }: any) => {
     return (
         <div style={{ background: "transparent", padding: "14px" }}>
             <div id={data.id}>{data.label}</div>
@@ -66,7 +66,7 @@ export const nodeTypes = {
     text: TextNode
 };
 
-const getNodeSuperType = (typeName) => {
+const getNodeSuperType = (typeName: string) => {
     let superTypeName = "Node"
 
     switch(typeName) {
@@ -124,7 +124,7 @@ const getNodeSuperType = (typeName) => {
     return superTypeName
 }
 
-const getLinkSuperType = (typeName) => {
+const getLinkSuperType = (typeName:string) => {
     let superTypeName = "Link";
 
     switch(typeName) {
@@ -190,6 +190,5 @@ const getLinkSuperType = (typeName) => {
         default:
             superTypeName = "Unknown"
     }
-    console.log("circle-node " + superTypeName)
     return "circle-node " + superTypeName;
 }
