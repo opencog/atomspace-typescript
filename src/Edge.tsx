@@ -1,28 +1,69 @@
-import React from 'react';
+import React, {CSSProperties} from 'react';
 import { getBezierPath, getMarkerEnd } from 'react-flow-renderer';
+import TypesClasses, {DefaultClass, TypesClass } from "./EdgeTypesStyle";
+import {Position} from "react-flow-renderer/dist/esm/types/utils";
 
-export default function CustomEdge({
+interface CustomEdgeInterface {
+    id: string,
+    sourceX: number,
+    sourceY: number,
+    targetX: number,
+    targetY: number,
+    sourcePosition: Position,
+    targetPosition: Position,
+    style: CSSProperties,
+    data: any,
+    markerEnd: string
+}
+
+const CustomEdge = ({
                                        id,
-                                       source,
-                                       target,
+                                       sourceX,
+                                       sourceY,
+                                       targetX,
+                                       targetY,
+                                       sourcePosition,
+                                       targetPosition,
+                                       style = {},
                                        data,
-                                   }) {
+                                       markerEnd,
+                                   }: any) => {
     const edgePath = getBezierPath({
-        source,
-        target,
+        sourceX,
+        sourceY,
+        sourcePosition,
+        targetX,
+        targetY,
+        targetPosition,
     });
+
+    let typeClass: TypesClass | undefined = TypesClasses.get(data.atomType);
+    //console.log(atomType.toString())
+    //console.log(atomType.toString())
+    if(!typeClass){
+        typeClass = DefaultClass;
+    }
+
 
     return (
         <>
             <path
                 id={id}
-                style={{stroke: "red"}}
+                style = {typeClass.class}
+                className="react-flow__edge-path"
                 d={edgePath}
+                markerEnd={markerEnd}
             />
+
         </>
     );
 }
-const getLinkSuperType = (typeName) => {
+
+export const edgeTypes = {
+    colored: CustomEdge,
+};
+
+const getLinkSuperType = (typeName: string) => {
     let superTypeName = "Link";
 
     switch(typeName) {

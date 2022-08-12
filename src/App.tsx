@@ -22,7 +22,9 @@ import { getLayoutedElements } from "./Layout";
 import { nodeTypes } from "./Nodes";
 import "./nodeStyles.css"
 import "./edgeStyles.css"
-import CustomEdge from './Edge';
+import { edgeTypes } from './Edge';
+import TypesClasses, {DefaultClass, TypesClass } from "./EdgeTypesStyle";
+
 
 const socket = io("http://localhost:4000");
 
@@ -34,6 +36,7 @@ export const App = ()=> {
     enum LastCommand {
         NO_CMD = "no_cmd",
         GET_ATOMS = "get_atoms",
+        GET_TYPES = "get_types",
         PUT_ATOM = "put_atom",
         ERROR = "error",
         GET_NODES = "get_nodes",
@@ -102,18 +105,11 @@ export const App = ()=> {
             link.outgoing.forEach((linkNode, index:number )=> {
 
                 let typeClass: TypesClass | undefined = TypesClasses.get(link.type);
+                console.log(link.type.toString())
 
-                if(typeClass){
-
-                    let newEdge = { id: `${index}${linkId}`, type: "colored", source: linkId, target: `${linkNode.name}`, style: typeClass.class };
+                    let newEdge = { id: `${index}${linkId}`, type: "colored", source: linkId, target: `${linkNode.name}`, data: {atomType: link.type}};
                     newEdges.push(newEdge);
 
-                } else{
-
-                    let newEdge = { id: `${index}${linkId}`, type: "colored", source: linkId, target: `${linkNode.name}`, style: DefaultClass.class };
-                    newEdges.push(newEdge);
-
-                    }
                 })
             newNodes.push(newNode);
         });
@@ -173,10 +169,6 @@ export const App = ()=> {
         // Move this outsite of useEffect
     },[]);
 
-    const edgeTypes = {
-        colored: CustomEdge,
-    };
-
     useEffect(() => {
         socket.removeListener('RecEvent');
         socket.on('RecEvent', function (ReceiveEvent) {
@@ -204,6 +196,9 @@ export const App = ()=> {
                     // makeAtom(newAtom[0]);
                     setCurCmdState(LastCommand.NO_CMD);
                     break
+                }
+                case LastCommand.GET_TYPES: {
+
                 }
             }
         });
@@ -289,7 +284,7 @@ export const App = ()=> {
                     fitView
                     fitViewOptions={fitViewOptions}
                     nodeTypes={nodeTypes}
-                    //edgeTypes={edgeTypes}
+                    edgeTypes={edgeTypes}
                 >
                     <Controls/>
                 </ReactFlow>
@@ -310,23 +305,3 @@ export default FlowWithProvider;
 
 
 
-interface TypesClass {
-    class: any
-}
-const DefaultClass = {
-    class: {}
-}
-const TypesClasses: Map<string, TypesClass> = new Map<string,TypesClass>(
-    [
-        ["LinkList", {
-            class: {
-                stroke:"blue",
-            },
-        }],
-        ["LinkList", {
-            class: {
-                stroke:"blue",
-            },
-        }]
-    ]
-);

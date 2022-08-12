@@ -89,3 +89,8 @@
     background: rgba(40, 113, 173, .34);
     border: 2px solid rgba(40, 113, 173, .68);
 }
+
+.Unknown {
+    background: rgba(185, 0, 0, .44);
+    border: 2px solid rgba(185, 0, 0, .88);
+}
