@@ -24,16 +24,10 @@ import "./nodeStyles.css"
 import "./edgeStyles.css"
 import CustomEdge from './Edge';
 
-const socket = io("http://localhost:4000");
-
 const ws = new WebSocket('ws://localhost:18080/json')
 
 export const App = ()=> {
     const [isConnected, setIsConnected] = useState(false);
-    ws.onopen = () => {
-        setIsConnected(true)
-        console.log("Socket opened")
-    }
 
 
 
@@ -135,7 +129,7 @@ export const App = ()=> {
         setConsoleLines(state => [ ...state,"Sent: " + data.msg])
         console.log("Sent: " + data.msg)
         setSendReadyState(false)
-        socket.emit('SendEvent',data);
+        ws.send(sendMessage);
     }
 
     const getAtoms = ()=>{
@@ -168,17 +162,18 @@ export const App = ()=> {
         outgoing: AtomBase[];
     }
 
+    ws.onopen = () => {
+        setIsConnected(true)
+        console.log("WS Connected")
+        setSendReadyState(true);
+    }
 
     useEffect(()=>{
-        socket.on('connect', () => {
-            console.log("Connected")
-            setIsConnected(true);
-            setSendReadyState(true);
-        });
 
-        socket.on('disconnect', () => {
+
+        ws.onclose = () => {
             setIsConnected(false);
-        });
+        }
         // Move this outsite of useEffect
     },[]);
 
@@ -187,16 +182,17 @@ export const App = ()=> {
     };
 
     useEffect(() => {
-        socket.removeListener('RecEvent');
-        socket.on('RecEvent', function (ReceiveEvent) {
+
+        ws.onmessage = (ReceiveEvent) => {
+            console.log("I got" + ReceiveEvent.data);
             //console.log("Received: " + ReceiveEvent.msg)
-            setConsoleLines(state => [ ...state, "Rec: " + ReceiveEvent.msg])
+            setConsoleLines(state => [ ...state, "Rec: " + ReceiveEvent.data])
             bottomRef.current?.scrollIntoView();
             setSendReadyState(true);
             console.log(`Current Command: ${curCmdState}`);
             switch(curCmdState){
                 case LastCommand.GET_ATOMS: {
-                    let trimmed = trimTrailJson(ReceiveEvent.msg)
+                    let trimmed = trimTrailJson(ReceiveEvent.data)
                     console.log(trimmed);
                     let newAtoms: AtomBase[] = JSON.parse(trimmed)
                     setAtoms(newAtoms);
@@ -206,17 +202,18 @@ export const App = ()=> {
                     break
                 }
                 case LastCommand.GET_LINKS: {
-                    let trimmed = trimTrailJson(ReceiveEvent.msg)
+                    let trimmed = trimTrailJson(ReceiveEvent.data)
                     console.log(trimmed);
-                    
+
 
                     // makeAtom(newAtom[0]);
                     setCurCmdState(LastCommand.NO_CMD);
                     break
                 }
             }
-        });
 
+
+        }
     }, [curCmdState]);
 
     return (
