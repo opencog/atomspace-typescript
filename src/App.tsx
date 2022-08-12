@@ -26,8 +26,17 @@ import CustomEdge from './Edge';
 
 const socket = io("http://localhost:4000");
 
+const ws = new WebSocket('ws://localhost:18080/json')
+
 export const App = ()=> {
-    const [isConnected, setIsConnected] = useState(socket.connected);
+    const [isConnected, setIsConnected] = useState(false);
+    ws.onopen = () => {
+        setIsConnected(true)
+        console.log("Socket opened")
+    }
+
+
+
     const [consoleLines, setConsoleLines] = useState([""]);
     const [inputtedMessage, setInputtedMessage] = useState('');
     const [sendReadyState, setSendReadyState] = useState(false)
