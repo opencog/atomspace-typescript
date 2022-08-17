@@ -10,7 +10,7 @@ import {TableFooter} from "@mui/material";
 import ReactFlow, {
     addEdge,
     applyEdgeChanges,
-    applyNodeChanges, Connection,
+    applyNodeChanges, Connection, ControlButton,
     Controls,
     Edge,
     EdgeChange,
@@ -24,29 +24,27 @@ import "./nodeStyles.css"
 import "./edgeStyles.css"
 import { edgeTypes } from './Edge';
 import TypesClasses, {DefaultClass, TypesClass } from "./EdgeTypesStyle";
-
+import {ReactComponent as AtomIcon} from './icons/atom-bold.svg';
 
 const ws = new WebSocket('ws://localhost:18080/json')
 
+
+
 export const App = ()=> {
     const [isConnected, setIsConnected] = useState(false);
-
-
-
     const [consoleLines, setConsoleLines] = useState([""]);
     const [inputtedMessage, setInputtedMessage] = useState('');
-    const [sendReadyState, setSendReadyState] = useState(false)
+    const [sendReadyState, setSendReadyState] = useState(false);
     enum LastCommand {
         NO_CMD = "no_cmd",
         GET_ATOMS = "get_atoms",
         GET_TYPES = "get_types",
-        PUT_ATOM = "put_atom",
+        MAKE_ATOM = "make_atom",
         ERROR = "error",
         GET_NODES = "get_nodes",
         GET_LINKS = "get_links"
     }
     const [curCmdState, setCurCmdState] = useState(LastCommand.NO_CMD)
-    let curCmd = LastCommand.NO_CMD
     let nodeCount = 3;
     const bottomRef = React.useRef<HTMLDivElement>(null);
 
@@ -59,7 +57,10 @@ export const App = ()=> {
     const fitViewOptions: FitViewOptions = {
         padding: 0.2
     }
-
+    const [makeAtomsState, setMakeAtomsState] = useState<AtomBase[]>([])
+    var makeAtomsArray: AtomBase[] = [];
+    let fooBarNumber = 1;
+    let fooBarString = "string"
 
     const [nodes, setNodesState] = useState<Node[]>(initialNodes);
     const [edges, setEdgesState] = useState<Edge[]>(initialEdges);
@@ -67,12 +68,11 @@ export const App = ()=> {
     const setNodes = (nodes: Node[]) => {
         const layoutedElements = getLayoutedElements(nodes, edges);
         setNodesState(layoutedElements.nodes);
-    }
-
+    };
     const setEdges = (edges: Edge[]) => {
         const layoutedElements = getLayoutedElements(nodes, edges);
         setEdgesState(layoutedElements.edges);
-    }
+    };
     const onNodesChange = useCallback(
         (changes: NodeChange[]) => setNodes(applyNodeChanges(changes, nodes)),
         [setNodes]
@@ -82,7 +82,18 @@ export const App = ()=> {
         [setEdges]
     );
     const onConnect = useCallback(
-        (connection: Connection) => setEdges(addEdge(connection, edges)),
+        (connection: Connection) => {
+
+            let newLink: AtomBase = {
+                name: "Something",
+                type: "ListLink",
+                outgoing: [
+
+                ]
+
+            }
+            setEdges(addEdge(connection, edges))
+        },
         [setEdges]
     );
 
@@ -120,6 +131,18 @@ export const App = ()=> {
         reactFlowInstance.setEdges(newEdges);
     }, []);
 
+    const makeAtomRequestTrue = () => {
+
+        console.log("Passed atoms: "+ makeAtomsState.length+ " Contains:"+ JSON.stringify(makeAtomsState))
+        let newNodes: Node[] = [];
+        makeAtomsState.forEach((atom:AtomBase)=>{
+            let newNode = { id: `${atom.name}`, type: "rectangle", data: { label: `Name: ${atom.name}`, info: `Type: ${atom.type}`, atomType: atom.type }, position: { x: 100, y: 100 }};
+            newNodes.push(newNode);
+        });
+        reactFlowInstance.addNodes(newNodes);
+        setMakeAtomsState([]);
+    }
+
     const sendMessage = (sendMessage: string) => {
         var data = {msg: sendMessage}
         setConsoleLines(state => [ ...state,"Sent: " + data.msg])
@@ -133,17 +156,30 @@ export const App = ()=> {
         sendMessage('AtomSpace.getAtoms("Atom")');
     }
 
+    const makeAtomRequest = ()=>{
+        console.log("Foobar is:"+fooBarNumber)
+        console.log("FoobarString is:"+fooBarString)
+        setCurCmdState(LastCommand.MAKE_ATOM);
+        let newAtom: AtomBase = {"type": "ConceptNode", "name": "foo"}
+        setMakeAtomsState([newAtom])
+        //makeAtomsArray.push(newAtom);
+        let makeAtomRequestString = `AtomSpace.loadAtoms(${JSON.stringify([newAtom])})`
+        console.log("Set atoms: "+ [newAtom].length+ ", Contains:"+ makeAtomRequestString)
+        sendMessage(makeAtomRequestString);
+    }
+
     const getLinks = ()=>{
         setCurCmdState(LastCommand.GET_LINKS);
         sendMessage('AtomSpace.getAtoms("Link")');
     }
 
     const trimTrailJson = (res: string) => {
-        console.log(`trim "${res.substring(res.length-6)}"?`)
         if(res.substring(res.length-6).includes("json")) {
+            console.log(`Trimmed: ${res.substring(res.length-6)}`)
             return res.substring(0, res.length - 6)
         }
         else {
+            console.log("No trim")
             return res
         }
     }
@@ -161,6 +197,7 @@ export const App = ()=> {
     ws.onopen = () => {
         setIsConnected(true)
         console.log("WS Connected")
+        console.log("My ID is: "+ws)
         setSendReadyState(true);
     }
 
@@ -174,9 +211,8 @@ export const App = ()=> {
     },[]);
 
     useEffect(() => {
-
         ws.onmessage = (ReceiveEvent) => {
-            console.log("I got" + ReceiveEvent.data);
+            console.log("Rec: " + ReceiveEvent.data);
             //console.log("Received: " + ReceiveEvent.msg)
             setConsoleLines(state => [ ...state, "Rec: " + ReceiveEvent.data])
             bottomRef.current?.scrollIntoView();
@@ -195,19 +231,26 @@ export const App = ()=> {
                 }
                 case LastCommand.GET_LINKS: {
                     let trimmed = trimTrailJson(ReceiveEvent.data)
-                    console.log(trimmed);
+                    console.log("Server resp: "+trimmed);
 
 
                     // makeAtom(newAtom[0]);
                     setCurCmdState(LastCommand.NO_CMD);
                     break
                 }
-                case LastCommand.GET_TYPES: {
-
+                case LastCommand.MAKE_ATOM: {
+                    fooBarString = "NotAString"
+                    fooBarNumber = 3;
+                    let trimmed: string = trimTrailJson(ReceiveEvent.data)
+                    console.log("Set atoms: "+ makeAtomsState.length+ ", Contains:"+ JSON.stringify(makeAtomsState))
+                    console.log("Server resp: "+trimmed);
+                    if(trimmed.match("true")){
+                        makeAtomRequestTrue()
+                    }
+                    setCurCmdState(LastCommand.NO_CMD);
+                    break
                 }
             }
-
-
         }
     }, [curCmdState]);
 
@@ -279,6 +322,13 @@ export const App = ()=> {
                 >
                     GetLinks
                 </button>
+                <button
+                    onClick={makeAtomRequest}
+                    disabled={!sendReadyState}
+                    style={{ width:"90px" }}
+                >
+                    Add Atom
+                </button>
             </div>
             <div style={{ height: 600, border: '3px solid rgba(0, 0, 0, .85)' , marginTop: 5}}>
                 <ReactFlow
@@ -292,7 +342,13 @@ export const App = ()=> {
                     nodeTypes={nodeTypes}
                     edgeTypes={edgeTypes}
                 >
-                    <Controls/>
+                    <Controls>
+                        <ControlButton onClick={() => console.log('action')}>
+                            <AtomIcon />
+                        </ControlButton>
+
+
+                    </Controls>
                 </ReactFlow>
             </div>
         </div>
