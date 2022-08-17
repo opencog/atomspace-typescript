@@ -25,6 +25,7 @@ import "./edgeStyles.css"
 import { edgeTypes } from './Edge';
 import TypesClasses, {DefaultClass, TypesClass } from "./EdgeTypesStyle";
 import {ReactComponent as AtomIcon} from './icons/atom-bold.svg';
+import {OCAPIResponse, OpenCogAPI} from "./OpenCogAPI";
 
 const ws = new WebSocket('ws://localhost:18080/json')
 
@@ -44,7 +45,8 @@ export const App = ()=> {
         GET_NODES = "get_nodes",
         GET_LINKS = "get_links"
     }
-    const [curCmdState, setCurCmdState] = useState(LastCommand.NO_CMD)
+    const [curCmdState, setCurCmdState] = useState(LastCommand.NO_CMD);
+    const [command, setCommand] = useState(LastCommand.NO_CMD);
     let nodeCount = 3;
     const bottomRef = React.useRef<HTMLDivElement>(null);
 
@@ -149,7 +151,10 @@ export const App = ()=> {
         console.log("Sent: " + data.msg)
         setSendReadyState(false)
         ws.send(sendMessage);
+
     }
+
+
 
     const getAtoms = ()=>{
         setCurCmdState(LastCommand.GET_ATOMS);
@@ -211,48 +216,22 @@ export const App = ()=> {
     },[]);
 
     useEffect(() => {
-        ws.onmessage = (ReceiveEvent) => {
-            console.log("Rec: " + ReceiveEvent.data);
-            //console.log("Received: " + ReceiveEvent.msg)
-            setConsoleLines(state => [ ...state, "Rec: " + ReceiveEvent.data])
-            bottomRef.current?.scrollIntoView();
-            setSendReadyState(true);
-            console.log(`Current Command: ${curCmdState}`);
-            switch(curCmdState){
-                case LastCommand.GET_ATOMS: {
-                    let trimmed = trimTrailJson(ReceiveEvent.data)
-                    console.log(trimmed);
-                    let newAtoms: AtomBase[] = JSON.parse(trimmed)
-                    setAtoms(newAtoms);
-
-                    // makeAtom(newAtom[0]);
-                    setCurCmdState(LastCommand.NO_CMD);
-                    break
-                }
-                case LastCommand.GET_LINKS: {
-                    let trimmed = trimTrailJson(ReceiveEvent.data)
-                    console.log("Server resp: "+trimmed);
-
-
-                    // makeAtom(newAtom[0]);
-                    setCurCmdState(LastCommand.NO_CMD);
-                    break
-                }
-                case LastCommand.MAKE_ATOM: {
-                    fooBarString = "NotAString"
-                    fooBarNumber = 3;
-                    let trimmed: string = trimTrailJson(ReceiveEvent.data)
-                    console.log("Set atoms: "+ makeAtomsState.length+ ", Contains:"+ JSON.stringify(makeAtomsState))
-                    console.log("Server resp: "+trimmed);
-                    if(trimmed.match("true")){
-                        makeAtomRequestTrue()
-                    }
-                    setCurCmdState(LastCommand.NO_CMD);
-                    break
-                }
-            }
+        switch (command){
+            case LastCommand.GET_ATOMS:
+                console.log("Command getAtoms")
+                getAtomsTwo()
+                setCommand(LastCommand.NO_CMD)
+                break;
         }
-    }, [curCmdState]);
+
+
+    }, [command]);
+
+    const getAtomsTwo = async () => {
+        let response = await OpenCogAPI.getAtom();
+        setConsoleLines(state => [ ...state,"Rec: " + response])
+        let newAtoms: AtomBase[] = JSON.parse(response)
+    }
 
     return (
         <div>
@@ -303,7 +282,7 @@ export const App = ()=> {
                     </button>
                 </div>
                 <button
-                    onClick={getAtoms}
+                    onClick={event => setCommand(LastCommand.GET_ATOMS)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
