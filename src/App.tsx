@@ -1,5 +1,4 @@
-import React, {useState, useEffect, useCallback, CSSProperties} from 'react';
-import io from 'socket.io-client';
+import React, {useCallback, useEffect, useState} from 'react';
 import Table from "@mui/material/Table";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
@@ -10,43 +9,51 @@ import {TableFooter} from "@mui/material";
 import ReactFlow, {
     addEdge,
     applyEdgeChanges,
-    applyNodeChanges, Connection, ControlButton,
+    applyNodeChanges,
+    Connection,
+    ControlButton,
     Controls,
     Edge,
     EdgeChange,
     FitViewOptions,
     Node,
-    NodeChange, ReactFlowInstance, ReactFlowProvider, useReactFlow
+    NodeChange,
+    ReactFlowProvider,
+    useReactFlow
 } from "react-flow-renderer";
-import { getLayoutedElements } from "./Layout";
-import { nodeTypes } from "./Nodes";
+import {getLayoutedElements} from "./Layout";
+import {nodeTypes} from "./Nodes";
 import "./nodeStyles.css"
 import "./edgeStyles.css"
-import { edgeTypes } from './Edge';
-import TypesClasses, {DefaultClass, TypesClass } from "./EdgeTypesStyle";
+import {edgeTypes} from './Edge';
+import TypesClasses, {TypesClass} from "./EdgeTypesStyle";
 import {ReactComponent as AtomIcon} from './icons/atom-bold.svg';
-import {OCAPIResponse, OpenCogAPI} from "./OpenCogAPI";
-
-const ws = new WebSocket('ws://localhost:18080/json')
-
+import {OpenCogAPI} from "./OpenCogAPI";
 
 
 export const App = ()=> {
     const [isConnected, setIsConnected] = useState(false);
+    const [sendReadyState, setSendReadyState] = useState(false);
     const [consoleLines, setConsoleLines] = useState([""]);
     const [inputtedMessage, setInputtedMessage] = useState('');
-    const [sendReadyState, setSendReadyState] = useState(false);
-    enum LastCommand {
-        NO_CMD = "no_cmd",
-        GET_ATOMS = "get_atoms",
-        GET_TYPES = "get_types",
-        MAKE_ATOM = "make_atom",
-        ERROR = "error",
-        GET_NODES = "get_nodes",
-        GET_LINKS = "get_links"
+
+    enum ApiCommand {
+        None = "NONE",
+        GetAllAtoms = "GET_ALL_ATOMS",
+        MakeAtom = "MAKE_ATOM",
+        LoadAtoms = "LOAD_ATOMS",
+        HaveAtom = "HAVE_ATOM",
+        HaveNode = "HAVE_NODE",
+        HaveLink = "HAVE_LINK",
+        SendRawString = "SEND_RAW_STRING",
+        GetJsonVersion = "GET_JSON_VERSION",
+        GetIncoming = "GET_INCOMING",
+        ExecuteAtom = "EXECUTE_ATOM",
+        GetNodes = "GET_NODES",
+        GetLinks = "GET_LINKS",
+        GetTypes = "GET_TYPES",
     }
-    const [curCmdState, setCurCmdState] = useState(LastCommand.NO_CMD);
-    const [command, setCommand] = useState(LastCommand.NO_CMD);
+    const [command, setCommand] = useState(ApiCommand.None);
     let nodeCount = 3;
     const bottomRef = React.useRef<HTMLDivElement>(null);
 
@@ -60,12 +67,21 @@ export const App = ()=> {
         padding: 0.2
     }
     const [makeAtomsState, setMakeAtomsState] = useState<AtomBase[]>([])
-    var makeAtomsArray: AtomBase[] = [];
-    let fooBarNumber = 1;
-    let fooBarString = "string"
 
     const [nodes, setNodesState] = useState<Node[]>(initialNodes);
     const [edges, setEdgesState] = useState<Edge[]>(initialEdges);
+
+    const addConsoleLine = (newLine: string) => {
+        setConsoleLines(state => [ ...state,newLine])
+    }
+
+    OpenCogAPI.getSocket().onopen = () => {
+        OpenCogAPI.updateConsole = addConsoleLine;
+        console.log("WS Connected")
+        setIsConnected(true)
+        setSendReadyState(true);
+    }
+
 
     const setNodes = (nodes: Node[]) => {
         const layoutedElements = getLayoutedElements(nodes, edges);
@@ -145,50 +161,6 @@ export const App = ()=> {
         setMakeAtomsState([]);
     }
 
-    const sendMessage = (sendMessage: string) => {
-        var data = {msg: sendMessage}
-        setConsoleLines(state => [ ...state,"Sent: " + data.msg])
-        console.log("Sent: " + data.msg)
-        setSendReadyState(false)
-        ws.send(sendMessage);
-
-    }
-
-
-
-    const getAtoms = ()=>{
-        setCurCmdState(LastCommand.GET_ATOMS);
-        sendMessage('AtomSpace.getAtoms("Atom")');
-    }
-
-    const makeAtomRequest = ()=>{
-        console.log("Foobar is:"+fooBarNumber)
-        console.log("FoobarString is:"+fooBarString)
-        setCurCmdState(LastCommand.MAKE_ATOM);
-        let newAtom: AtomBase = {"type": "ConceptNode", "name": "foo"}
-        setMakeAtomsState([newAtom])
-        //makeAtomsArray.push(newAtom);
-        let makeAtomRequestString = `AtomSpace.loadAtoms(${JSON.stringify([newAtom])})`
-        console.log("Set atoms: "+ [newAtom].length+ ", Contains:"+ makeAtomRequestString)
-        sendMessage(makeAtomRequestString);
-    }
-
-    const getLinks = ()=>{
-        setCurCmdState(LastCommand.GET_LINKS);
-        sendMessage('AtomSpace.getAtoms("Link")');
-    }
-
-    const trimTrailJson = (res: string) => {
-        if(res.substring(res.length-6).includes("json")) {
-            console.log(`Trimmed: ${res.substring(res.length-6)}`)
-            return res.substring(0, res.length - 6)
-        }
-        else {
-            console.log("No trim")
-            return res
-        }
-    }
-
     interface AtomBase {
         type: string;
         name?: string;
@@ -199,39 +171,118 @@ export const App = ()=> {
         outgoing: AtomBase[];
     }
 
-    ws.onopen = () => {
-        setIsConnected(true)
-        console.log("WS Connected")
-        console.log("My ID is: "+ws)
-        setSendReadyState(true);
-    }
-
-    useEffect(()=>{
-
-
-        ws.onclose = () => {
-            setIsConnected(false);
-        }
-        // Move this outsite of useEffect
-    },[]);
-
     useEffect(() => {
         switch (command){
-            case LastCommand.GET_ATOMS:
-                console.log("Command getAtoms")
-                getAtomsTwo()
-                setCommand(LastCommand.NO_CMD)
+            case ApiCommand.SendRawString:
+                console.log("Command: "+command)
+                setCommand(ApiCommand.None);
+                break;
+            case ApiCommand.GetJsonVersion:
+                console.log("Command: "+command)
+                getJsonVersion();
+                setCommand(ApiCommand.None);
+                break;
+            case ApiCommand.GetAllAtoms:
+                console.log("Command: "+command)
+                getAllAtoms()
+                setCommand(ApiCommand.None)
+                break;
+            case ApiCommand.MakeAtom:
+                console.log("Command: "+command);
+                makeAtom();
+                setCommand(ApiCommand.None);
+                break;
+            case ApiCommand.LoadAtoms:
+                console.log("Command: "+command);
+                loadAtoms();
+                setCommand(ApiCommand.None);
+                break;
+            case ApiCommand.HaveAtom:
+                console.log("Command: "+command);
+                haveAtom();
+                setCommand(ApiCommand.None);
+                break;
+            case ApiCommand.HaveNode:
+                console.log("Command: "+command);
+                haveNode();
+                setCommand(ApiCommand.None);
+                break;
+            case ApiCommand.HaveLink:
+                console.log("Command: "+command);
+                haveLink();
+                setCommand(ApiCommand.None);
+                break;
+            case ApiCommand.GetIncoming:
+                console.log("Command: "+command);
+                getIncoming();
+                setCommand(ApiCommand.None);
+                break;
+            case ApiCommand.ExecuteAtom:
+                console.log("Command: "+command);
+                executeAtom();
+                setCommand(ApiCommand.None);
                 break;
         }
 
 
     }, [command]);
 
-    const getAtomsTwo = async () => {
-        let response = await OpenCogAPI.getAtom();
-        setConsoleLines(state => [ ...state,"Rec: " + response])
-        let newAtoms: AtomBase[] = JSON.parse(response)
+    const getAllAtoms = async () => {
+        let newAtoms: AtomBase[] = await OpenCogAPI.getAllAtoms();
+        if(newAtoms) {
+            setAtoms(newAtoms)
+            console.log("Atoms Retrieved: "+newAtoms.length)
+        }
+        else{
+            console.log("Atoms Retrieved: None")
+        }
     }
+
+    const makeAtom = async () => {
+        let success = await OpenCogAPI.makeAtom({"type": "ConceptNode", "name": "bar"});
+        console.log("Succeeded: "+success);
+    }
+
+    const loadAtoms = async () => {
+        let success = await OpenCogAPI.loadAtoms([{"type": "ConceptNode", "name": "baz"},{"type": "ConceptNode", "name": "qux"}]);
+        console.log("Succeeded: "+success);
+    }
+
+    const haveAtom = async () => {
+        let success = await OpenCogAPI.haveAtom({"type": "ConceptNode", "name": "baz"});
+        console.log("Succeeded: "+success);
+    }
+
+    const haveNode = async () => {
+        let success = await OpenCogAPI.haveNode({"type": "ConceptNode", "name": "baz"});
+        console.log("Succeeded: "+success);
+    }
+
+    const haveLink = async () => {
+        let success = await OpenCogAPI.haveLink({ "type": "ListLink", "outgoing": [ { "type": "ConceptNode", "name": "foo" }, { "type": "ConceptNode", "name": "bar" }]});
+        console.log("Succeeded: "+success);
+    }
+
+    const getIncoming = async () => {
+        let response = await OpenCogAPI.getIncoming({"type": "ConceptNode", "name": "bar"});
+        console.log("Atoms Retrieved: "+response.length)
+    }
+
+    const executeAtom = async () => {
+        let response = await OpenCogAPI.executeAtom({ "type": "PlusLink", "outgoing":[{"type": "NumberNode", "name": "2"},{"type": "NumberNode", "name": "2"}]});
+        if(response) {
+            console.log("Atom Executed")
+        }
+        else{
+            console.log("Atom failed to execute")
+        }
+    }
+
+    const getJsonVersion = async () => {
+        let response = await OpenCogAPI.getJsonVersion();
+        console.log("JSON Version: "+response);
+    }
+
 
     return (
         <div>
@@ -271,8 +322,13 @@ export const App = ()=> {
                     />
                     <button
                         onClick={() => {
-                            if(inputtedMessage != "")
-                                sendMessage(inputtedMessage);
+                            if(inputtedMessage != "") {
+                                OpenCogAPI.sendRawString(inputtedMessage);
+                                setCommand(ApiCommand.SendRawString)
+                            }
+                            else{
+                                console.log("RawString Empty")
+                            }
                         }}
                         disabled={!sendReadyState}
                         style={{ width:"90px" }}
@@ -282,7 +338,7 @@ export const App = ()=> {
                     </button>
                 </div>
                 <button
-                    onClick={event => setCommand(LastCommand.GET_ATOMS)}
+                    onClick={event => setCommand(ApiCommand.GetAllAtoms)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
@@ -295,18 +351,60 @@ export const App = ()=> {
                     MakeNodes
                 </button>
                 <button
-                    onClick={getLinks}
+                    onClick={event => setCommand(ApiCommand.LoadAtoms)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
-                    GetLinks
+                    Make Atoms
                 </button>
                 <button
-                    onClick={makeAtomRequest}
+                    onClick={event => setCommand(ApiCommand.MakeAtom)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
-                    Add Atom
+                    Make Atom
+                </button>
+                <button
+                    onClick={event => setCommand(ApiCommand.HaveAtom)}
+                    disabled={!sendReadyState}
+                    style={{ width:"90px" }}
+                >
+                    Have Atom
+                </button>
+                <button
+                    onClick={event => setCommand(ApiCommand.HaveNode)}
+                    disabled={!sendReadyState}
+                    style={{ width:"90px" }}
+                >
+                    Have Node
+                </button>
+                <button
+                    onClick={event => setCommand(ApiCommand.HaveLink)}
+                    disabled={!sendReadyState}
+                    style={{ width:"90px" }}
+                >
+                    Have Link
+                </button>
+                <button
+                    onClick={event => setCommand(ApiCommand.GetJsonVersion)}
+                    disabled={!sendReadyState}
+                    style={{ width:"90px" }}
+                >
+                    Get Version
+                </button>
+                <button
+                    onClick={event => setCommand(ApiCommand.GetIncoming)}
+                    disabled={!sendReadyState}
+                    style={{ width:"90px" }}
+                >
+                    Get Incoming
+                </button>
+                <button
+                    onClick={event => setCommand(ApiCommand.ExecuteAtom)}
+                    disabled={!sendReadyState}
+                    style={{ width:"90px" }}
+                >
+                    Execute Atom
                 </button>
             </div>
             <div style={{ height: 600, border: '3px solid rgba(0, 0, 0, .85)' , marginTop: 5}}>
