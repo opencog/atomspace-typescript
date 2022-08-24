@@ -76,7 +76,6 @@ export const App = ()=> {
     }
 
     OpenCogAPI.getSocket().onopen = () => {
-        OpenCogAPI.updateConsole = addConsoleLine;
         console.log("WS Connected")
         setIsConnected(true)
         setSendReadyState(true);
@@ -175,6 +174,7 @@ export const App = ()=> {
         switch (command){
             case ApiCommand.SendRawString:
                 console.log("Command: "+command)
+                OpenCogAPI.sendRawString(addConsoleLine,inputtedMessage);
                 setCommand(ApiCommand.None);
                 break;
             case ApiCommand.GetJsonVersion:
@@ -223,12 +223,12 @@ export const App = ()=> {
                 setCommand(ApiCommand.None);
                 break;
         }
-
+        bottomRef.current?.scrollIntoView();
 
     }, [command]);
 
     const getAllAtoms = async () => {
-        let newAtoms: AtomBase[] = await OpenCogAPI.getAllAtoms();
+        let newAtoms: AtomBase[] = await OpenCogAPI.getAllAtoms(addConsoleLine);
         if(newAtoms) {
             setAtoms(newAtoms)
             console.log("Atoms Retrieved: "+newAtoms.length)
@@ -239,37 +239,37 @@ export const App = ()=> {
     }
 
     const makeAtom = async () => {
-        let success = await OpenCogAPI.makeAtom({"type": "ConceptNode", "name": "bar"});
+        let success = await OpenCogAPI.makeAtom(addConsoleLine,{"type": "ConceptNode", "name": "bar"});
         console.log("Succeeded: "+success);
     }
 
     const loadAtoms = async () => {
-        let success = await OpenCogAPI.loadAtoms([{"type": "ConceptNode", "name": "baz"},{"type": "ConceptNode", "name": "qux"}]);
+        let success = await OpenCogAPI.loadAtoms(addConsoleLine,[{"type": "ConceptNode", "name": "baz"},{"type": "ConceptNode", "name": "qux"}]);
         console.log("Succeeded: "+success);
     }
 
     const haveAtom = async () => {
-        let success = await OpenCogAPI.haveAtom({"type": "ConceptNode", "name": "baz"});
+        let success = await OpenCogAPI.haveAtom(addConsoleLine,{"type": "ConceptNode", "name": "baz"});
         console.log("Succeeded: "+success);
     }
 
     const haveNode = async () => {
-        let success = await OpenCogAPI.haveNode({"type": "ConceptNode", "name": "baz"});
+        let success = await OpenCogAPI.haveNode(addConsoleLine,{"type": "ConceptNode", "name": "baz"});
         console.log("Succeeded: "+success);
     }
 
     const haveLink = async () => {
-        let success = await OpenCogAPI.haveLink({ "type": "ListLink", "outgoing": [ { "type": "ConceptNode", "name": "foo" }, { "type": "ConceptNode", "name": "bar" }]});
+        let success = await OpenCogAPI.haveLink(addConsoleLine,{ "type": "ListLink", "outgoing": [ { "type": "ConceptNode", "name": "foo" }, { "type": "ConceptNode", "name": "bar" }]});
         console.log("Succeeded: "+success);
     }
 
     const getIncoming = async () => {
-        let response = await OpenCogAPI.getIncoming({"type": "ConceptNode", "name": "bar"});
+        let response = await OpenCogAPI.getIncoming(addConsoleLine,{"type": "ConceptNode", "name": "bar"});
         console.log("Atoms Retrieved: "+response.length)
     }
 
     const executeAtom = async () => {
-        let response = await OpenCogAPI.executeAtom({ "type": "PlusLink", "outgoing":[{"type": "NumberNode", "name": "2"},{"type": "NumberNode", "name": "2"}]});
+        let response = await OpenCogAPI.executeAtom(addConsoleLine,{ "type": "PlusLink", "outgoing":[{"type": "NumberNode", "name": "2"},{"type": "NumberNode", "name": "2"}]});
         if(response) {
             console.log("Atom Executed")
         }
@@ -279,7 +279,7 @@ export const App = ()=> {
     }
 
     const getJsonVersion = async () => {
-        let response = await OpenCogAPI.getJsonVersion();
+        let response = await OpenCogAPI.getJsonVersion(addConsoleLine);
         console.log("JSON Version: "+response);
     }
 
@@ -307,8 +307,8 @@ export const App = ()=> {
                             ))}
                         </TableBody>
                         <TableFooter>
-                            <div className="bottomContainerElement" ref={bottomRef} />
                             {'_'}
+                            <div className="bottomContainerElement" ref={bottomRef} />
                         </TableFooter>
                     </Table>
 
@@ -323,7 +323,7 @@ export const App = ()=> {
                     <button
                         onClick={() => {
                             if(inputtedMessage != "") {
-                                OpenCogAPI.sendRawString(inputtedMessage);
+
                                 setCommand(ApiCommand.SendRawString)
                             }
                             else{

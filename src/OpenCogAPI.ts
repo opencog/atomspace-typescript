@@ -1,17 +1,24 @@
-import {io, Socket} from "socket.io-client";
-
 export interface AtomBase {
     type: string;
     name?: string;
     outgoing?: AtomBase[];
 }
 
-export class OpenCogAPI {
+interface ValueNode {
+    name?: string;
+    type: string;
+    value: ValueNode | Array<any> | string | number;
+}
 
+interface AtomKeyValuePair {
+    key: AtomBase;
+    value: ValueNode;
+}
+
+export class OpenCogAPI {
     private websocket:  WebSocket;
     //private scmWebsocket: WebSocket;
     static api: OpenCogAPI;
-    static updateConsole: Function;
 
     constructor() {
         this.websocket = new WebSocket('ws://localhost:18080/json');
@@ -27,177 +34,346 @@ export class OpenCogAPI {
         }
     }
 
-    static sendMessage = (sendMessage: string) => {
-        OpenCogAPI.updateConsole("S> "+sendMessage);
+    private static sendMessage = (sendMessage: string) => {
         OpenCogAPI.getSocket().send(sendMessage);
     }
 
-    static async sendRawString(rawString: string) {
-            OpenCogAPI.sendMessage(rawString);
-            OpenCogAPI.getSocket().addEventListener('message', function sendRawString(event) {
-                OpenCogAPI.updateConsole("R> "+event.data);
-                OpenCogAPI.getSocket().removeEventListener('message',sendRawString)
-            });
+    static async sendRawString(
+        consoleCallback: (newLine: string) => void,
+        rawString: string
+    ) {
+        consoleCallback("S> " + rawString);
+        OpenCogAPI.getSocket().addEventListener('message', function sendRawStringListener(event) {
+            consoleCallback("R> " + event.data);
+            OpenCogAPI.getSocket().removeEventListener('message', sendRawStringListener)
+        });
+        OpenCogAPI.sendMessage(rawString);
     }
 
-    static async getAllAtoms(): Promise<AtomBase[]> {
-        const returnPromise = new Promise<AtomBase[]>((resolve,reject)=>{
-            OpenCogAPI.sendMessage('AtomSpace.getAtoms("Atom")');
+    static async getAllAtoms(
+        consoleCallback: (newLine: string)=>void
+    ): Promise<AtomBase[]> {
+        return new Promise<AtomBase[]>((resolve, reject) => {
+            let requestString = 'AtomSpace.getAtoms("Atom")'
+            consoleCallback("S> " + requestString);
             OpenCogAPI.getSocket().addEventListener('message', function getAtomListener(event) {
-                OpenCogAPI.updateConsole("R> "+event.data);
-                let trimmed = trimTrailJson(event.data);
-                let returnedAtoms: AtomBase[] = JSON.parse(trimmed);
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                let returnedAtoms: AtomBase[] = JSON.parse(trimmedResponse);
                 resolve(returnedAtoms);
-                OpenCogAPI.getSocket().removeEventListener('message',getAtomListener)
+                OpenCogAPI.getSocket().removeEventListener('message', getAtomListener)
             });
-
-
+            OpenCogAPI.sendMessage(requestString);
         });
-        return returnPromise;
     }
 
-    static async makeAtom(newAtom: AtomBase): Promise<boolean> {
-        const returnPromise = new Promise<boolean>((resolve,reject)=>{
-            OpenCogAPI.sendMessage(`AtomSpace.makeAtom(${JSON.stringify(newAtom)})`);
+    static async makeAtom(
+        consoleCallback: (newLine: string)=>void,
+        newAtom: AtomBase
+    ): Promise<AtomBase> {
+        return new Promise<AtomBase>((resolve, reject) => {
+            let requestString = `AtomSpace.makeAtom(${JSON.stringify(newAtom)})`
+            consoleCallback("S> " + requestString);
             OpenCogAPI.getSocket().addEventListener('message', function makeAtomListener(event) {
-                OpenCogAPI.updateConsole("R> "+event.data);
-                let trimmed = trimTrailJson(event.data);
-                if(trimmed.match("true")){
-                    resolve(true);
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                if (trimmedResponse.match("true")) {
+                    resolve(newAtom);
+                } else {
+                    reject(newAtom);
                 }
-                else{
-                    resolve(false);
-                }
-                OpenCogAPI.getSocket().removeEventListener('message',makeAtomListener)
+                OpenCogAPI.getSocket().removeEventListener('message', makeAtomListener)
             });
+            OpenCogAPI.sendMessage(requestString);
         });
-        return returnPromise;
     }
 
-    static async loadAtoms(newAtoms: AtomBase[]): Promise<boolean> {
-        const returnPromise = new Promise<boolean>((resolve,reject)=>{
-            OpenCogAPI.sendMessage(`AtomSpace.loadAtoms(${JSON.stringify(newAtoms)})`);
+    static async addLink(
+        consoleCallback: (newLine: string)=>void,
+        linkType: string,
+        linkedAtoms: AtomBase[]
+    ): Promise<AtomBase> {
+        return new Promise<AtomBase>((resolve, reject) => {
+            let newLink: AtomBase = {type: linkType, outgoing: linkedAtoms}
+            let requestString = `AtomSpace.makeAtom(${JSON.stringify(newLink)})`
+            consoleCallback("S> " + requestString);
+            OpenCogAPI.getSocket().addEventListener('message', function addLinkListener(event) {
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                if (trimmedResponse.match("true")) {
+                    resolve(newLink);
+                } else {
+                    reject(newLink);
+                }
+                OpenCogAPI.getSocket().removeEventListener('message', addLinkListener)
+            });
+            OpenCogAPI.sendMessage(requestString);
+        });
+    }
+
+    static async loadAtoms(
+        consoleCallback: (newLine: string)=>void,
+        newAtoms: AtomBase[]
+    ): Promise<AtomBase[]> {
+        return new Promise<AtomBase[]>((resolve, reject) => {
+            let requestString = `AtomSpace.loadAtoms(${JSON.stringify(newAtoms)})`
+            consoleCallback("S> " + requestString);
             OpenCogAPI.getSocket().addEventListener('message', function loadAtomsListener(event) {
-                OpenCogAPI.updateConsole("R> "+event.data);
-                let trimmed = trimTrailJson(event.data);
-                if(trimmed.match("true")){
-                    resolve(true);
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                if (trimmedResponse.match("true")) {
+                    resolve(newAtoms);
+                } else {
+                    reject(newAtoms);
                 }
-                else{
-                    resolve(false);
-                }
-                OpenCogAPI.getSocket().removeEventListener('message',loadAtomsListener)
+                OpenCogAPI.getSocket().removeEventListener('message', loadAtomsListener)
             });
+            OpenCogAPI.sendMessage(requestString);
         });
-        return returnPromise;
     }
 
-    static async haveAtom(checkAtom: AtomBase): Promise<boolean> {
-        const returnPromise = new Promise<boolean>((resolve,reject)=>{
-            OpenCogAPI.sendMessage(`AtomSpace.haveAtom(${JSON.stringify(checkAtom)})`);
+    static async haveAtom(
+        consoleCallback: (newLine: string)=>void,
+        atomToCheck: AtomBase
+    ): Promise<boolean> {
+        return new Promise<boolean>((resolve, reject) => {
+            let requestString = `AtomSpace.haveAtom(${JSON.stringify(atomToCheck)})`
+            consoleCallback("S> " + requestString);
             OpenCogAPI.getSocket().addEventListener('message', function haveAtomListener(event) {
-                OpenCogAPI.updateConsole("R> "+event.data);
-                let trimmed = trimTrailJson(event.data);
-                if(trimmed.match("true")){
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                if (trimmedResponse.match("true")) {
                     resolve(true);
-                }
-                else{
+                } else {
                     resolve(false);
                 }
-                OpenCogAPI.getSocket().removeEventListener('message',haveAtomListener)
+                OpenCogAPI.getSocket().removeEventListener('message', haveAtomListener)
             });
+            OpenCogAPI.sendMessage(requestString);
         });
-        return returnPromise;
     }
 
-    static async haveNode(checkNode: AtomBase): Promise<boolean> {
-        const returnPromise = new Promise<boolean>((resolve,reject)=>{
-            OpenCogAPI.sendMessage(`AtomSpace.haveAtom(${JSON.stringify(checkNode)})`);
+    static async haveNode(
+        consoleCallback: (newLine: string)=>void,
+        nodeToCheck: AtomBase
+    ): Promise<boolean> {
+        return new Promise<boolean>((resolve, reject) => {
+            let requestString = `AtomSpace.haveAtom(${JSON.stringify(nodeToCheck)})`
+            consoleCallback("S> " + requestString);
             OpenCogAPI.getSocket().addEventListener('message', function haveNodeListener(event) {
-                OpenCogAPI.updateConsole("R> "+event.data);
-                let trimmed = trimTrailJson(event.data);
-                if(trimmed.match("true")){
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                if (trimmedResponse.match("true")) {
                     resolve(true);
-                }
-                else{
+                } else {
                     resolve(false);
                 }
-                OpenCogAPI.getSocket().removeEventListener('message',haveNodeListener)
+                OpenCogAPI.getSocket().removeEventListener('message', haveNodeListener)
             });
+            OpenCogAPI.sendMessage(requestString);
         });
-        return returnPromise;
     }
 
-    static async haveLink(checkLink: AtomBase): Promise<boolean> {
-        const returnPromise = new Promise<boolean>((resolve,reject)=>{
-            let linkType = checkLink.type.replace('Link','')
-            OpenCogAPI.sendMessage(`AtomSpace.haveLink("${linkType}",${JSON.stringify(checkLink.outgoing)})`);
-            OpenCogAPI.getSocket().addEventListener('message', function haveLinkListener(event) {
-                OpenCogAPI.updateConsole("R> "+event.data);
-                let trimmed = trimTrailJson(event.data);
-                if(trimmed.match("true")){
-                    resolve(true);
+    //NOTE: Have link is not the same request syntax as HaveAtom or HaveNode
+    //A) The haveNode function takes an Atom object, the haveLink takes a string for the link type and array of Atoms
+    //B) The Link type needs to have the keyword 'Link' removed for the match to occur properly
+    static async haveLink(
+        consoleCallback: (newLine: string)=>void,
+        linkToCheck: AtomBase
+    ): Promise<boolean> {
+        return new Promise<boolean>((resolve, reject) => {
+            try{
+                let linkType = linkToCheck.type.replace('Link', '')
+                if(linkToCheck.type == linkType){
+                    throw new Error("Unable to replace the word Link in text")
                 }
-                else{
-                    resolve(false);
-                }
-                OpenCogAPI.getSocket().removeEventListener('message',haveLinkListener)
-            });
+                let requestString = `AtomSpace.haveLink("${linkType}",${JSON.stringify(linkToCheck.outgoing)})`
+                consoleCallback("S> " + requestString);
+                OpenCogAPI.getSocket().addEventListener('message', function haveLinkListener(event) {
+                    consoleCallback("R> " + event.data);
+                    let trimmedResponse = trimTrailJson(event.data);
+                    if (trimmedResponse.match("true")) {
+                        resolve(true);
+                    } else {
+                        resolve(false);
+                    }
+                    OpenCogAPI.getSocket().removeEventListener('message', haveLinkListener)
+                });
+                OpenCogAPI.sendMessage(requestString);
+            }
+            catch{
+                reject("Unable to replace the word Link in text")
+            }
         });
-        return returnPromise;
     }
 
-    static async getIncoming(checkAtomIncoming: AtomBase): Promise<AtomBase[]> {
-        const returnPromise = new Promise<AtomBase[]>((resolve,reject)=>{
-            OpenCogAPI.sendMessage(`AtomSpace.getIncoming(${JSON.stringify(checkAtomIncoming)})`);
+    static async getIncoming(
+        consoleCallback: (newLine:string)=>void,
+        atomToQuery: AtomBase
+    ): Promise<AtomBase[]> {
+        return new Promise<AtomBase[]>((resolve, reject) => {
+            let requestString = `AtomSpace.getIncoming(${JSON.stringify(atomToQuery)})`
+            consoleCallback("S> " + requestString);
             OpenCogAPI.getSocket().addEventListener('message', function getIncomingListener(event) {
-                OpenCogAPI.updateConsole("R> "+event.data);
-                let trimmed = trimTrailJson(event.data);
-                let returnedAtoms: AtomBase[] = JSON.parse(trimmed);
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                let returnedAtoms: AtomBase[] = JSON.parse(trimmedResponse);
                 resolve(returnedAtoms);
-                OpenCogAPI.getSocket().removeEventListener('message',getIncomingListener)
+                OpenCogAPI.getSocket().removeEventListener('message', getIncomingListener)
             });
+            OpenCogAPI.sendMessage(requestString);
         });
-        return returnPromise;
     }
 
-    //Get Atom Values
-    //AtomSpace.getValues()
+    static async getValues(
+        consoleCallback: (newLine:string)=>void,
+        atomToQuery: AtomBase
+    ): Promise<AtomKeyValuePair[]> {
+        return new Promise<AtomKeyValuePair[]>((resolve, reject) => {
+            let requestString = `AtomSpace.getValues(${JSON.stringify(atomToQuery)})`
+            consoleCallback("S> " + requestString);
+            OpenCogAPI.getSocket().addEventListener('message', function getValuesListener(event) {
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                let returnedKeyValuePairs: AtomKeyValuePair[] = JSON.parse(trimmedResponse);
+                resolve(returnedKeyValuePairs);
+                OpenCogAPI.getSocket().removeEventListener('message', getValuesListener)
+            });
+            OpenCogAPI.sendMessage(requestString);
+        });
+    }
+    
+    static async setValue(
+        consoleCallback: (newLine:string)=>void,
+        atomToEdit: AtomBase,
+        atomKey: AtomBase,
+        atomValue: ValueNode
+    ): Promise<AtomKeyValuePair> {
+        return new Promise<AtomKeyValuePair>((resolve, reject) => {
+            let requestObject = {type:atomToEdit.type,name:atomToEdit.name,key:atomKey,value:atomValue};
+            let requestString = `AtomSpace.setValues(${JSON.stringify(requestObject)})`
+            consoleCallback("S> " + requestString);
+            OpenCogAPI.getSocket().addEventListener('message', function setValueListener(event) {
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                if (trimmedResponse.match("true")) {
+                    resolve(requestObject);
+                } else {
+                    reject(requestObject);
+                }
+                OpenCogAPI.getSocket().removeEventListener('message', setValueListener)
+            });
+            OpenCogAPI.sendMessage(requestString);
+        });
+    }
 
-    //Set Atom Values
-    //AtomSpace.setValue()
+    static async getTruthValue(
+        consoleCallback: (newLine:string)=>void,
+        atomToQuery: AtomBase
+    ): Promise<ValueNode[]> {
+        return new Promise<ValueNode[]>((resolve, reject) => {
+            let requestString = `AtomSpace.getTV(${JSON.stringify(atomToQuery)})`
+            consoleCallback("S> " + requestString);
+            OpenCogAPI.getSocket().addEventListener('message', function getTruthValueListener(event) {
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                let returnedValue: ValueNode[] = JSON.parse(trimmedResponse);
+                resolve(returnedValue);
+                OpenCogAPI.getSocket().removeEventListener('message', getTruthValueListener)
+            });
+            OpenCogAPI.sendMessage(requestString);
+        });
+    }
 
-    //Get Truth Value
-    //AtomSpace.getTV()
+    static async setTruthValue(
+        consoleCallback: (newLine:string)=>void,
+        atomToEdit: AtomBase,
+        newTruthValue: ValueNode,
+    ): Promise<ValueNode> {
+        return new Promise<ValueNode>((resolve, reject) => {
+            let requestString = `AtomSpace.setTV(${JSON.stringify({type:atomToEdit.type ,name:atomToEdit.name, value:newTruthValue})})`
+            consoleCallback("S> " + requestString);
+            OpenCogAPI.getSocket().addEventListener('message', function setTruthValueListener(event) {
+                let trimmedResponse = trimTrailJson(event.data);
+                if (trimmedResponse.match("true")) {
+                    resolve(newTruthValue);
+                } else {
+                    reject(newTruthValue);
+                }
+                OpenCogAPI.getSocket().removeEventListener('message', setTruthValueListener)
+            });
+            OpenCogAPI.sendMessage(requestString);
+        });
+    }
 
-    //Set Truth Value
-    //AtomSpace.setTV()
-
-    static async executeAtom(executableAtom: AtomBase): Promise<AtomBase> {
-        const returnPromise = new Promise<AtomBase>((resolve,reject)=>{
-            OpenCogAPI.sendMessage(`AtomSpace.execute(${JSON.stringify(executableAtom)})`);
+    static async executeAtom(
+        consoleCallback: (newLine:string)=>void,
+        executableAtom: AtomBase
+    ): Promise<AtomBase> {
+        return new Promise<AtomBase>((resolve, reject) => {
+            let requestString = `AtomSpace.execute(${JSON.stringify(executableAtom)})`
+            consoleCallback("S> " + requestString);
             OpenCogAPI.getSocket().addEventListener('message', function executeAtomListener(event) {
-                OpenCogAPI.updateConsole("R> "+event.data);
-                let trimmed = trimTrailJson(event.data);
-                let returnedAtom: AtomBase = JSON.parse(trimmed);
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                let returnedAtom: AtomBase = JSON.parse(trimmedResponse);
                 resolve(returnedAtom);
-                OpenCogAPI.getSocket().removeEventListener('message',executeAtomListener)
+                OpenCogAPI.getSocket().removeEventListener('message', executeAtomListener)
             });
+            OpenCogAPI.sendMessage(requestString);
         });
-        return returnPromise;
     }
 
-    static async getJsonVersion(): Promise<string> {
-        const returnPromise = new Promise<string>((resolve,reject)=>{
-            OpenCogAPI.sendMessage("AtomSpace.version()");
-            OpenCogAPI.getSocket().addEventListener('message', function getJsonVersionListener(event) {
-                OpenCogAPI.updateConsole("R> "+event.data);
-                let trimmed = trimTrailJson(event.data);
-                resolve(trimmed);
-                OpenCogAPI.getSocket().removeEventListener('message',getJsonVersionListener)
+    static async getSubTypes(
+        consoleCallback: (newLine:string)=>void,
+        baseType: string
+    ): Promise<string[]> {
+        return new Promise<string[]>((resolve, reject) => {
+            let requestString = `AtomSpace.getSubTypes("${baseType}")`
+            consoleCallback("S> " + requestString);
+            OpenCogAPI.getSocket().addEventListener('message', function getSubTypesListener(event) {
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                let subTypes: string[] = JSON.parse(trimmedResponse);
+                resolve(subTypes);
+                OpenCogAPI.getSocket().removeEventListener('message', getSubTypesListener)
             });
+            OpenCogAPI.sendMessage(requestString);
         });
-        return returnPromise;
+    }
+
+    static async getSupertypes(
+        consoleCallback: (newLine:string)=>void,
+        baseType: string
+    ): Promise<string[]> {
+        return new Promise<string[]>((resolve, reject) => {
+            let requestString = `AtomSpace.getSuperTypes("${baseType}")`
+            consoleCallback("S> " + requestString);
+            OpenCogAPI.getSocket().addEventListener('message', function getSupertypesListener(event) {
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                let superTypes: string[] = JSON.parse(trimmedResponse);
+                resolve(superTypes);
+                OpenCogAPI.getSocket().removeEventListener('message', getSupertypesListener)
+            });
+            OpenCogAPI.sendMessage(requestString);
+        });
+    }
+
+    static async getJsonVersion(
+        consoleCallback: (newLine:string)=>void
+    ): Promise<string> {
+        return new Promise<string>((resolve, reject) => {
+            let requestString = "AtomSpace.version()"
+            consoleCallback("S> " + requestString);
+            OpenCogAPI.getSocket().addEventListener('message', function getJsonVersionListener(event) {
+                consoleCallback("R> " + event.data);
+                let trimmedResponse = trimTrailJson(event.data);
+                resolve(trimmedResponse);
+                OpenCogAPI.getSocket().removeEventListener('message', getJsonVersionListener)
+            });
+            OpenCogAPI.sendMessage(requestString);
+        });
     }
 }
 
