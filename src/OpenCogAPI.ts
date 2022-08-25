@@ -41,13 +41,16 @@ export class OpenCogAPI {
     static async sendRawString(
         consoleCallback: (newLine: string) => void,
         rawString: string
-    ) {
-        consoleCallback("S> " + rawString);
-        OpenCogAPI.getSocket().addEventListener('message', function sendRawStringListener(event) {
-            consoleCallback("R> " + event.data);
-            OpenCogAPI.getSocket().removeEventListener('message', sendRawStringListener)
+    ): Promise<string> {
+        return new Promise<string>((resolve, reject) => {
+            consoleCallback("S> " + rawString);
+            OpenCogAPI.getSocket().addEventListener('message', function sendRawStringListener(event) {
+                consoleCallback("R> " + event.data);
+                resolve(event.data)
+                OpenCogAPI.getSocket().removeEventListener('message', sendRawStringListener)
+            });
+            OpenCogAPI.sendMessage(rawString);
         });
-        OpenCogAPI.sendMessage(rawString);
     }
 
     static async getAllAtoms(
@@ -80,7 +83,7 @@ export class OpenCogAPI {
                 if (trimmedResponse.match("true")) {
                     resolve(newAtom);
                 } else {
-                    reject(newAtom);
+                    reject("AtomSpace rejected the atom insertion.");
                 }
                 OpenCogAPI.getSocket().removeEventListener('message', makeAtomListener)
             });
@@ -103,7 +106,7 @@ export class OpenCogAPI {
                 if (trimmedResponse.match("true")) {
                     resolve(newLink);
                 } else {
-                    reject(newLink);
+                    reject("AtomSpace rejected the link insertion.");
                 }
                 OpenCogAPI.getSocket().removeEventListener('message', addLinkListener)
             });
@@ -124,7 +127,7 @@ export class OpenCogAPI {
                 if (trimmedResponse.match("true")) {
                     resolve(newAtoms);
                 } else {
-                    reject(newAtoms);
+                    reject("AtomSpace rejected the bulk insertion.");
                 }
                 OpenCogAPI.getSocket().removeEventListener('message', loadAtomsListener)
             });
@@ -259,7 +262,7 @@ export class OpenCogAPI {
                 if (trimmedResponse.match("true")) {
                     resolve(requestObject);
                 } else {
-                    reject(requestObject);
+                    reject("sever rejected new key value parameters");
                 }
                 OpenCogAPI.getSocket().removeEventListener('message', setValueListener)
             });
@@ -298,7 +301,7 @@ export class OpenCogAPI {
                 if (trimmedResponse.match("true")) {
                     resolve(newTruthValue);
                 } else {
-                    reject(newTruthValue);
+                    reject("Server rejected new truth value");
                 }
                 OpenCogAPI.getSocket().removeEventListener('message', setTruthValueListener)
             });
@@ -334,9 +337,16 @@ export class OpenCogAPI {
             OpenCogAPI.getSocket().addEventListener('message', function getSubTypesListener(event) {
                 consoleCallback("R> " + event.data);
                 let trimmedResponse = trimTrailJson(event.data);
-                let subTypes: string[] = JSON.parse(trimmedResponse);
-                resolve(subTypes);
-                OpenCogAPI.getSocket().removeEventListener('message', getSubTypesListener)
+                try {
+                    let superTypes: string[] = JSON.parse(trimmedResponse);
+                    resolve(superTypes);
+                }
+                catch(error){
+                    reject("Exception during parse: "+error)
+                }
+                finally {
+                    OpenCogAPI.getSocket().removeEventListener('message', getSubTypesListener)
+                }
             });
             OpenCogAPI.sendMessage(requestString);
         });
@@ -352,9 +362,16 @@ export class OpenCogAPI {
             OpenCogAPI.getSocket().addEventListener('message', function getSupertypesListener(event) {
                 consoleCallback("R> " + event.data);
                 let trimmedResponse = trimTrailJson(event.data);
-                let superTypes: string[] = JSON.parse(trimmedResponse);
-                resolve(superTypes);
-                OpenCogAPI.getSocket().removeEventListener('message', getSupertypesListener)
+                try {
+                    let superTypes: string[] = JSON.parse(trimmedResponse);
+                    resolve(superTypes);
+                }
+                catch(error){
+                    reject("Exception during parse: "+error)
+                }
+                finally {
+                    OpenCogAPI.getSocket().removeEventListener('message', getSupertypesListener)
+                }
             });
             OpenCogAPI.sendMessage(requestString);
         });

@@ -18,7 +18,7 @@ import ReactFlow, {
     FitViewOptions,
     Node,
     NodeChange,
-    ReactFlowProvider,
+    ReactFlowProvider, useNodes,
     useReactFlow
 } from "react-flow-renderer";
 import {getLayoutedElements} from "./Layout";
@@ -29,13 +29,42 @@ import {edgeTypes} from './Edge';
 import TypesClasses, {TypesClass} from "./EdgeTypesStyle";
 import {ReactComponent as AtomIcon} from './icons/atom-bold.svg';
 import {OpenCogAPI} from "./OpenCogAPI";
-
+import ConfirmationDialogRaw from './LinkTypeLogin';
 
 export const App = ()=> {
     const [isConnected, setIsConnected] = useState(false);
     const [sendReadyState, setSendReadyState] = useState(false);
     const [consoleLines, setConsoleLines] = useState([""]);
     const [inputtedMessage, setInputtedMessage] = useState('');
+
+
+
+    const linkTypeOptions = [
+        "OrderedLink",
+        "ListLink",
+        "SetDifferenceLink",
+        "MemberLink",
+        "SubsetLink",
+        "ContextLink",
+        "TrueLink",
+        "FalseLink",
+        "SequentialAndLink",
+        "SequentialOrLink",
+        "ChoiceLink",
+        "Section",
+        "TagLink",
+        "QuoteLink",
+        "UnquoteLink",
+        "LocalQuoteLink",
+        "DontExecLink",
+        "ReplacementLink",
+        "FreeLink",
+        "IntervalLink",
+        "ImplicationLink",
+        "InheritanceLink",
+        "AssociativeLink",
+        "ExecutionLink"
+    ];
 
     enum ApiCommand {
         None = "NONE",
@@ -66,10 +95,16 @@ export const App = ()=> {
     const fitViewOptions: FitViewOptions = {
         padding: 0.2
     }
-    const [makeAtomsState, setMakeAtomsState] = useState<AtomBase[]>([])
-
+    const [makeAtomsState, setMakeAtomsState] = useState<AtomBase[]>([]);
     const [nodes, setNodesState] = useState<Node[]>(initialNodes);
     const [edges, setEdgesState] = useState<Edge[]>(initialEdges);
+    const initialMakeEdgeState = {source:{type:""},target:{type:""}};
+    const [makeEdgeState, setMakeEdgeState] = useState<{ source: AtomBase, target: AtomBase }>(initialMakeEdgeState);
+
+    const [selectLinkType, setSelectLinkType] = useState({
+        open: false,
+        value: "ListLink",
+    })
 
     const addConsoleLine = (newLine: string) => {
         setConsoleLines(state => [ ...state,newLine])
@@ -100,22 +135,45 @@ export const App = ()=> {
     );
     const onConnect = useCallback(
         (connection: Connection) => {
-
-            let newLink: AtomBase = {
-                name: "Something",
-                type: "ListLink",
-                outgoing: [
-
-                ]
-
+            let filteredSource = nodes.filter(node => node.id === connection.source)
+            let filteredTarget = nodes.filter(node => node.id === connection.target)
+            if(filteredSource.length > 1 || filteredTarget.length > 1){
+                console.log("More than one node match");
             }
-            setEdges(addEdge(connection, edges))
+            else if(filteredSource.length === 0 || filteredTarget.length === 0){
+                console.log("No node data");
+            }
+            else if(filteredSource[0].type === "linkNode" || filteredTarget[0].type === "linkNode"){
+                console.log("A link was selected")
+            }
+            else{
+                setMakeEdgeState({source: filteredSource[0].data.atomObj, target: filteredTarget[0].data.atomObj})
+                setSelectLinkType({open:true,value:selectLinkType.value})
+            }
+
         },
-        [setEdges]
+
+        [setNodes]
     );
 
+    const handleSelectLinkTypeClose = (linkTypeSelection: string, selectionConfirmed: boolean) => {
+        setSelectLinkType({ open: false,value: linkTypeSelection });
+        if(selectionConfirmed){
+            createLinkAndGetAtomSpace(linkTypeSelection)
+        }
+    };
+
+    const createLinkAndGetAtomSpace = async (linkType: string) => {
+        if(makeEdgeState.source.type !== ""){
+            OpenCogAPI.addLink(addConsoleLine,linkType,[makeEdgeState.source,makeEdgeState.target]).then(()=>{
+                setMakeEdgeState(initialMakeEdgeState);
+                setCommand(ApiCommand.GetAllAtoms);
+            })
+        }
+    }
+
     const reactFlowInstance = useReactFlow();
-    const makeNodes = useCallback(() => {
+    const makeDummyNodes = useCallback(() => {
         let newNode = { id: `${nodeCount}`, data: { label: `Node ${nodeCount}` }, position: { x: 100, y: 100 } };
         nodeCount++;
         reactFlowInstance.addNodes(newNode)
@@ -127,12 +185,12 @@ export const App = ()=> {
         let newNodes: Node[] = [];
         let newEdges: Edge[] = [];
         nodeAtoms.forEach((atom:AtomBase, index:number, array:AtomBase[])=>{
-            let newNode = { id: `${atom.name}`, type: "rectangle", data: { label: `Name: ${atom.name}`, info: `Type: ${atom.type}`, atomType: atom.type }, position: { x: 100, y: 100 }};
+            let newNode = { id: `${atom.name}`, type: "rectangle", data: { label: `Name: ${atom.name}`, info: `Type: ${atom.type}`, atomType: atom.type, atomObj: atom }, position: { x: 100, y: 100 }};
             newNodes.push(newNode);
         });
         (linkAtoms as AtomLink[]).forEach((link:AtomLink, index:number, array:AtomBase[])=>{
             let linkId = `${link.type}:${link.outgoing[0].name},${link.outgoing[1].name}`
-            let newNode = { id: linkId, type: "circle" ,data: { label: `${link.type}, Links: ${link.outgoing.length}`, atomType: link.type }, position: { x: 100, y: 100 }};
+            let newNode = { id: linkId, type: "linkNode" ,data: { label: `${link.type}, Links: ${link.outgoing.length}`, atomType: link.type, atomObj: link}, position: { x: 100, y: 100 }};
             link.outgoing.forEach((linkNode, index:number )=> {
 
                 let typeClass: TypesClass | undefined = TypesClasses.get(link.type);
@@ -147,18 +205,6 @@ export const App = ()=> {
         reactFlowInstance.setNodes(newNodes);
         reactFlowInstance.setEdges(newEdges);
     }, []);
-
-    const makeAtomRequestTrue = () => {
-
-        console.log("Passed atoms: "+ makeAtomsState.length+ " Contains:"+ JSON.stringify(makeAtomsState))
-        let newNodes: Node[] = [];
-        makeAtomsState.forEach((atom:AtomBase)=>{
-            let newNode = { id: `${atom.name}`, type: "rectangle", data: { label: `Name: ${atom.name}`, info: `Type: ${atom.type}`, atomType: atom.type }, position: { x: 100, y: 100 }};
-            newNodes.push(newNode);
-        });
-        reactFlowInstance.addNodes(newNodes);
-        setMakeAtomsState([]);
-    }
 
     interface AtomBase {
         type: string;
@@ -283,7 +329,6 @@ export const App = ()=> {
         console.log("JSON Version: "+response);
     }
 
-
     return (
         <div>
             <div style={{ width:"1000px" }}>
@@ -345,10 +390,10 @@ export const App = ()=> {
                     Get Atoms
                 </button>
                 <button
-                    onClick={makeNodes}
-                    style={{ width:"90px" }}
+                    onClick={makeDummyNodes}
+                    style={{ width:"110px" }}
                 >
-                    MakeNodes
+                    Make Dummy Nodes
                 </button>
                 <button
                     onClick={event => setCommand(ApiCommand.LoadAtoms)}
@@ -427,6 +472,12 @@ export const App = ()=> {
 
                     </Controls>
                 </ReactFlow>
+                <ConfirmationDialogRaw
+                    options = {linkTypeOptions}
+                    open={selectLinkType.open}
+                    onClose={handleSelectLinkTypeClose}
+                    value={selectLinkType.value}
+                />
             </div>
         </div>
     );

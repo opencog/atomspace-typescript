@@ -61,7 +61,7 @@ export const TextNode = ({ data }: any) => {
 };
 
 export const nodeTypes = {
-    circle: CircleNode,
+    linkNode: CircleNode,
     rectangle: RectangleNode,
     text: TextNode
 };
