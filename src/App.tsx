@@ -29,7 +29,7 @@ import {edgeTypes} from './Edge';
 import TypesClasses, {TypesClass} from "./EdgeTypesStyle";
 import {ReactComponent as AtomIcon} from './icons/atom-bold.svg';
 import {OpenCogAPI} from "./OpenCogAPI";
-import ConfirmationDialogRaw from './LinkTypeLogin';
+import ConfirmationDialogRaw from './LinkTypeDialog';
 
 export const App = ()=> {
     const [isConnected, setIsConnected] = useState(false);
@@ -156,7 +156,7 @@ export const App = ()=> {
         [setNodes]
     );
 
-    const handleSelectLinkTypeClose = (linkTypeSelection: string, selectionConfirmed: boolean) => {
+    const handleSelectLinkTypeClose = (selectionConfirmed: boolean,linkTypeSelection: string ) => {
         setSelectLinkType({ open: false,value: linkTypeSelection });
         if(selectionConfirmed){
             createLinkAndGetAtomSpace(linkTypeSelection)
@@ -192,9 +192,6 @@ export const App = ()=> {
             let linkId = `${link.type}:${link.outgoing[0].name},${link.outgoing[1].name}`
             let newNode = { id: linkId, type: "linkNode" ,data: { label: `${link.type}, Links: ${link.outgoing.length}`, atomType: link.type, atomObj: link}, position: { x: 100, y: 100 }};
             link.outgoing.forEach((linkNode, index:number )=> {
-
-                let typeClass: TypesClass | undefined = TypesClasses.get(link.type);
-                console.log(link.type.toString())
 
                     let newEdge = { id: `${index}${linkId}`, type: "colored", source: linkId, target: `${linkNode.name}`, data: {atomType: link.type}};
                     newEdges.push(newEdge);
@@ -368,7 +365,6 @@ export const App = ()=> {
                     <button
                         onClick={() => {
                             if(inputtedMessage != "") {
-
                                 setCommand(ApiCommand.SendRawString)
                             }
                             else{
