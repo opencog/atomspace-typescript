@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import Table from "@mui/material/Table";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
@@ -6,8 +6,9 @@ import TableCell from "@mui/material/TableCell";
 import TableBody from "@mui/material/TableBody";
 import TableContainer from "@mui/material/TableContainer";
 import {TableFooter} from "@mui/material";
+import {APICommands, OpenCogAPI} from "./services/OpenCogAPI";
+import { useDispatch, useSelector } from 'react-redux';
 import ReactFlow, {
-    addEdge,
     applyEdgeChanges,
     applyNodeChanges,
     Connection,
@@ -18,71 +19,49 @@ import ReactFlow, {
     FitViewOptions,
     Node,
     NodeChange,
-    ReactFlowProvider, useNodes,
+    ReactFlowProvider,
     useReactFlow
 } from "react-flow-renderer";
-import {getLayoutedElements} from "./Layout";
-import {nodeTypes} from "./Nodes";
-import "./nodeStyles.css"
-import "./edgeStyles.css"
-import {edgeTypes} from './Edge';
-import TypesClasses, {TypesClass} from "./EdgeTypesStyle";
+import {getLayoutedElements} from "./util/Layout";
+import "./css/edgeStyles.css"
+import TypesClasses, {SeedColors, TypesClass} from "./util/EdgeTypesStyle";
 import {ReactComponent as AtomIcon} from './icons/atom-bold.svg';
-import {OpenCogAPI} from "./OpenCogAPI";
-import ConfirmationDialogRaw from './LinkTypeDialog';
+
+import Legend from "./components/Legend/Legend";
+import LinkTypeDialog from "./components/LinkTypeDialog/LinkTypeDialog";
+import NodeAtomNode from "./components/NodeAtomNode/NodeAtomNode";
+import LinkAtomNode from "./components/LinkAtomNode/LinkAtomNode";
+import LinkAtomEdge from "./components/LinkAtomEdge/LinkAtomEdge";
+import {generateTypeClassMap} from "./App.controller";
+import {AtomspaceVisualizerSetTypesClassesAction} from "./redux/actions/AtomspaceVisualizerActions";
+import {RootState} from "./redux/store";
+
+export const atomNodeTypes = {
+    linkAtomNode: LinkAtomNode,
+    nodeAtomNode: NodeAtomNode
+};
+
+export const atomLinkTypes = {
+    linkAtomEdge: LinkAtomEdge
+}
 
 export const App = ()=> {
+    const dispatch = useDispatch();
+    const reactFlowInstance = useReactFlow();
+    const TypesClasses = useSelector((state:RootState) => state.atomspaceVisualizerState.typesClasses);
     const [isConnected, setIsConnected] = useState(false);
     const [sendReadyState, setSendReadyState] = useState(false);
     const [consoleLines, setConsoleLines] = useState([""]);
     const [inputtedMessage, setInputtedMessage] = useState('');
+    const [linkParentTypes, setLinkParentTypes] = useState<string[]>([])
+    const [nodeParentTypes, setNodeParentTypes] = useState<string[]>([])
+    const [linkChildLookup, setLinkChildLoopup] = useState(new Map<string,string>())
+    const [nodeChildLookup, setNodeChildLoopup] = useState(new Map<string,string>())
+    //Note this is not the most efficient way to store these, but it does allow for efficient querying of supertypes
 
+    const tinycolor = require("tinycolor2");
 
-
-    const linkTypeOptions = [
-        "OrderedLink",
-        "ListLink",
-        "SetDifferenceLink",
-        "MemberLink",
-        "SubsetLink",
-        "ContextLink",
-        "TrueLink",
-        "FalseLink",
-        "SequentialAndLink",
-        "SequentialOrLink",
-        "ChoiceLink",
-        "Section",
-        "TagLink",
-        "QuoteLink",
-        "UnquoteLink",
-        "LocalQuoteLink",
-        "DontExecLink",
-        "ReplacementLink",
-        "FreeLink",
-        "IntervalLink",
-        "ImplicationLink",
-        "InheritanceLink",
-        "AssociativeLink",
-        "ExecutionLink"
-    ];
-
-    enum ApiCommand {
-        None = "NONE",
-        GetAllAtoms = "GET_ALL_ATOMS",
-        MakeAtom = "MAKE_ATOM",
-        LoadAtoms = "LOAD_ATOMS",
-        HaveAtom = "HAVE_ATOM",
-        HaveNode = "HAVE_NODE",
-        HaveLink = "HAVE_LINK",
-        SendRawString = "SEND_RAW_STRING",
-        GetJsonVersion = "GET_JSON_VERSION",
-        GetIncoming = "GET_INCOMING",
-        ExecuteAtom = "EXECUTE_ATOM",
-        GetNodes = "GET_NODES",
-        GetLinks = "GET_LINKS",
-        GetTypes = "GET_TYPES",
-    }
-    const [command, setCommand] = useState(ApiCommand.None);
+    const [command, setCommand] = useState(APICommands.None);
     let nodeCount = 3;
     const bottomRef = React.useRef<HTMLDivElement>(null);
 
@@ -114,8 +93,58 @@ export const App = ()=> {
         console.log("WS Connected")
         setIsConnected(true)
         setSendReadyState(true);
+        buildTypesAndStyles()
+
     }
 
+    const buildTypesAndStyles = async () => {
+        let nodeSuperTypes = await getNodeTypes();
+        let linkSuperTypes = await getLinkTypes();
+        let types = generateTypeClassMap(nodeSuperTypes,linkSuperTypes);
+        dispatch(AtomspaceVisualizerSetTypesClassesAction(types));
+    }
+
+    const getNodeTypes = async ()  => {
+        let returnedNodeParentTypes = await OpenCogAPI.getSubTypes(addConsoleLine, "Node", false)
+        setNodeParentTypes(returnedNodeParentTypes);
+        let buildNodeChildLookup = new Map<string, string>();
+        for (let parentType of returnedNodeParentTypes) {
+            buildNodeChildLookup.set(parentType, parentType)
+            let allDescendantTypes = await OpenCogAPI.getSubTypes(addConsoleLine, parentType, true)
+            allDescendantTypes.forEach(childType => {
+                buildNodeChildLookup.set(childType, parentType);
+            })
+        }
+        setNodeChildLoopup(buildNodeChildLookup)
+        return returnedNodeParentTypes
+    }
+    const getLinkTypes = async () => {
+        let returnedLinkParentTypes = await OpenCogAPI.getSubTypes(addConsoleLine, "Link", false);
+        setLinkParentTypes(returnedLinkParentTypes);
+        let buildLinkChildLookup = new Map<string,string>();
+        for(let parentType of returnedLinkParentTypes){
+            buildLinkChildLookup.set(parentType,parentType)
+            let allDescendantTypes = await OpenCogAPI.getSubTypes(addConsoleLine, parentType, true)
+            allDescendantTypes.forEach(childType => {
+                buildLinkChildLookup.set(childType,parentType);
+            })
+        }
+        setLinkChildLoopup(buildLinkChildLookup)
+        return returnedLinkParentTypes
+    }
+
+
+    const checkColors = () =>{
+        TypesClasses.forEach((value,key) => {
+            if(value.class.background) {
+                console.log(`Type: ${key} + ${value.class.background}`)
+            }
+            else {
+                console.log(`Type: ${key} + ${value.class.stroke}`)
+            }
+
+        })
+    }
 
     const setNodes = (nodes: Node[]) => {
         const layoutedElements = getLayoutedElements(nodes, edges);
@@ -125,6 +154,13 @@ export const App = ()=> {
         const layoutedElements = getLayoutedElements(nodes, edges);
         setEdgesState(layoutedElements.edges);
     };
+
+    const onNodeMouseEnter = useCallback((event: React.MouseEvent, node: Node) => {
+        console.log(node.data.atomType)
+        },
+        []
+    )
+
     const onNodesChange = useCallback(
         (changes: NodeChange[]) => setNodes(applyNodeChanges(changes, nodes)),
         [setNodes]
@@ -133,6 +169,7 @@ export const App = ()=> {
         (changes: EdgeChange[]) => setEdges(applyEdgeChanges(changes, edges)),
         [setEdges]
     );
+
     const onConnect = useCallback(
         (connection: Connection) => {
             let filteredSource = nodes.filter(node => node.id === connection.source)
@@ -167,12 +204,22 @@ export const App = ()=> {
         if(makeEdgeState.source.type !== ""){
             OpenCogAPI.addLink(addConsoleLine,linkType,[makeEdgeState.source,makeEdgeState.target]).then(()=>{
                 setMakeEdgeState(initialMakeEdgeState);
-                setCommand(ApiCommand.GetAllAtoms);
+                setCommand(APICommands.GetAllAtoms);
             })
         }
     }
 
-    const reactFlowInstance = useReactFlow();
+
+    const ViewportLogger = () => {
+        const { x, y, zoom } = reactFlowInstance.getViewport()
+
+
+            console.log(x, y, zoom);
+
+
+        return null;
+    }
+
     const makeDummyNodes = useCallback(() => {
         let newNode = { id: `${nodeCount}`, data: { label: `Node ${nodeCount}` }, position: { x: 100, y: 100 } };
         nodeCount++;
@@ -185,15 +232,16 @@ export const App = ()=> {
         let newNodes: Node[] = [];
         let newEdges: Edge[] = [];
         nodeAtoms.forEach((atom:AtomBase, index:number, array:AtomBase[])=>{
-            let newNode = { id: `${atom.name}`, type: "rectangle", data: { label: `Name: ${atom.name}`, info: `Type: ${atom.type}`, atomType: atom.type, atomObj: atom }, position: { x: 100, y: 100 }};
+            let newNode = { id: `${atom.name}`, type: "nodeAtomNode", data: { label: `Name: ${atom.name}`, info: `Type: ${atom.type}`, atomType: atom.type, atomObj: atom }, position: { x: 100, y: 100 }};
             newNodes.push(newNode);
         });
         (linkAtoms as AtomLink[]).forEach((link:AtomLink, index:number, array:AtomBase[])=>{
             let linkId = `${link.type}:${link.outgoing[0].name},${link.outgoing[1].name}`
-            let newNode = { id: linkId, type: "linkNode" ,data: { label: `${link.type}, Links: ${link.outgoing.length}`, atomType: link.type, atomObj: link}, position: { x: 100, y: 100 }};
+            console.log("Link Child Type: "+linkChildLookup.get(link.type))
+            let newNode = { id: linkId, type: "linkAtomNode" ,data: { label: `${link.type}, Links: ${link.outgoing.length}`, atomType: linkChildLookup.get(link.type), atomObj: link}, position: { x: 100, y: 100 }};
             link.outgoing.forEach((linkNode, index:number )=> {
 
-                    let newEdge = { id: `${index}${linkId}`, type: "colored", source: linkId, target: `${linkNode.name}`, data: {atomType: link.type}};
+                    let newEdge = { id: `${index}${linkId}`, type: "linkAtomEdge", source: linkId, target: `${linkNode.name}`, data: {atomType: linkChildLookup.get(link.type)}};
                     newEdges.push(newEdge);
 
                 })
@@ -201,7 +249,7 @@ export const App = ()=> {
         });
         reactFlowInstance.setNodes(newNodes);
         reactFlowInstance.setEdges(newEdges);
-    }, []);
+    }, [linkChildLookup]);
 
     interface AtomBase {
         type: string;
@@ -215,55 +263,55 @@ export const App = ()=> {
 
     useEffect(() => {
         switch (command){
-            case ApiCommand.SendRawString:
+            case APICommands.SendRawString:
                 console.log("Command: "+command)
                 OpenCogAPI.sendRawString(addConsoleLine,inputtedMessage);
-                setCommand(ApiCommand.None);
+                setCommand(APICommands.None);
                 break;
-            case ApiCommand.GetJsonVersion:
+            case APICommands.GetJsonVersion:
                 console.log("Command: "+command)
                 getJsonVersion();
-                setCommand(ApiCommand.None);
+                setCommand(APICommands.None);
                 break;
-            case ApiCommand.GetAllAtoms:
+            case APICommands.GetAllAtoms:
                 console.log("Command: "+command)
                 getAllAtoms()
-                setCommand(ApiCommand.None)
+                setCommand(APICommands.None)
                 break;
-            case ApiCommand.MakeAtom:
+            case APICommands.MakeAtom:
                 console.log("Command: "+command);
                 makeAtom();
-                setCommand(ApiCommand.None);
+                setCommand(APICommands.None);
                 break;
-            case ApiCommand.LoadAtoms:
+            case APICommands.LoadAtoms:
                 console.log("Command: "+command);
                 loadAtoms();
-                setCommand(ApiCommand.None);
+                setCommand(APICommands.None);
                 break;
-            case ApiCommand.HaveAtom:
+            case APICommands.HaveAtom:
                 console.log("Command: "+command);
                 haveAtom();
-                setCommand(ApiCommand.None);
+                setCommand(APICommands.None);
                 break;
-            case ApiCommand.HaveNode:
+            case APICommands.HaveNode:
                 console.log("Command: "+command);
                 haveNode();
-                setCommand(ApiCommand.None);
+                setCommand(APICommands.None);
                 break;
-            case ApiCommand.HaveLink:
+            case APICommands.HaveLink:
                 console.log("Command: "+command);
                 haveLink();
-                setCommand(ApiCommand.None);
+                setCommand(APICommands.None);
                 break;
-            case ApiCommand.GetIncoming:
+            case APICommands.GetIncoming:
                 console.log("Command: "+command);
                 getIncoming();
-                setCommand(ApiCommand.None);
+                setCommand(APICommands.None);
                 break;
-            case ApiCommand.ExecuteAtom:
+            case APICommands.ExecuteAtom:
                 console.log("Command: "+command);
                 executeAtom();
-                setCommand(ApiCommand.None);
+                setCommand(APICommands.None);
                 break;
         }
         bottomRef.current?.scrollIntoView();
@@ -326,6 +374,10 @@ export const App = ()=> {
         console.log("JSON Version: "+response);
     }
 
+    // Dialog
+    const [isLinkTypeDialogOpen, setIsLinkTypeDialogOpen] = React.useState<boolean>(false);
+    // Dialog
+
     return (
         <div>
             <div style={{ width:"1000px" }}>
@@ -365,7 +417,7 @@ export const App = ()=> {
                     <button
                         onClick={() => {
                             if(inputtedMessage != "") {
-                                setCommand(ApiCommand.SendRawString)
+                                setCommand(APICommands.SendRawString)
                             }
                             else{
                                 console.log("RawString Empty")
@@ -379,7 +431,7 @@ export const App = ()=> {
                     </button>
                 </div>
                 <button
-                    onClick={event => setCommand(ApiCommand.GetAllAtoms)}
+                    onClick={event => setCommand(APICommands.GetAllAtoms)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
@@ -392,64 +444,81 @@ export const App = ()=> {
                     Make Dummy Nodes
                 </button>
                 <button
-                    onClick={event => setCommand(ApiCommand.LoadAtoms)}
+                    onClick={event => setCommand(APICommands.LoadAtoms)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
                     Make Atoms
                 </button>
                 <button
-                    onClick={event => setCommand(ApiCommand.MakeAtom)}
+                    onClick={event => setCommand(APICommands.MakeAtom)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
                     Make Atom
                 </button>
                 <button
-                    onClick={event => setCommand(ApiCommand.HaveAtom)}
+                    onClick={event => setCommand(APICommands.HaveAtom)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
                     Have Atom
                 </button>
                 <button
-                    onClick={event => setCommand(ApiCommand.HaveNode)}
+                    onClick={event => setCommand(APICommands.HaveNode)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
                     Have Node
                 </button>
                 <button
-                    onClick={event => setCommand(ApiCommand.HaveLink)}
+                    onClick={event => setCommand(APICommands.HaveLink)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
                     Have Link
                 </button>
                 <button
-                    onClick={event => setCommand(ApiCommand.GetJsonVersion)}
+                    onClick={event => setCommand(APICommands.GetJsonVersion)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
                     Get Version
                 </button>
                 <button
-                    onClick={event => setCommand(ApiCommand.GetIncoming)}
+                    onClick={event => setCommand(APICommands.GetIncoming)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
                     Get Incoming
                 </button>
                 <button
-                    onClick={event => setCommand(ApiCommand.ExecuteAtom)}
+                    onClick={event => setCommand(APICommands.ExecuteAtom)}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
                     Execute Atom
                 </button>
+                <button
+                    onClick={event => checkColors()}
+                    disabled={!sendReadyState}
+                    style={{ width:"90px" }}
+                >
+                    Check Colors
+                </button>
+                <button
+                    onClick={ViewportLogger}
+                    disabled={!sendReadyState}
+                    style={{ width:"90px" }}
+                >
+                    ViewportLogger
+                </button>
             </div>
             <div style={{ height: 600, border: '3px solid rgba(0, 0, 0, .85)' , marginTop: 5}}>
+
+
                 <ReactFlow
+                    onNodeMouseEnter={onNodeMouseEnter}
                     nodes={nodes}
                     edges={edges}
                     onNodesChange={onNodesChange}
@@ -457,9 +526,10 @@ export const App = ()=> {
                     onConnect={onConnect}
                     fitView
                     fitViewOptions={fitViewOptions}
-                    nodeTypes={nodeTypes}
-                    edgeTypes={edgeTypes}
+                    nodeTypes={atomNodeTypes}
+                    edgeTypes={atomLinkTypes}
                 >
+
                     <Controls>
                         <ControlButton onClick={() => console.log('action')}>
                             <AtomIcon />
@@ -467,13 +537,27 @@ export const App = ()=> {
 
 
                     </Controls>
+                    <Legend
+                    className={"legendContainerParents"}
+                    nodeTypeList={nodeParentTypes}
+                    linkTypeList={linkParentTypes}
+                    />
+                    <Legend
+                        className={"legendContainerChildren"}
+                        nodeTypeList={nodeParentTypes}
+                        linkTypeList={linkParentTypes}
+                    />
                 </ReactFlow>
-                <ConfirmationDialogRaw
-                    options = {linkTypeOptions}
-                    open={selectLinkType.open}
-                    onClose={handleSelectLinkTypeClose}
-                    value={selectLinkType.value}
-                />
+                <LinkTypeDialog
+                    open={isLinkTypeDialogOpen}
+                    onCancel={()=>{
+                        setIsLinkTypeDialogOpen(false)
+                    }}
+                    onSubmit={async (value:string)=>{
+                        await createLinkAndGetAtomSpace(value);
+                        setIsLinkTypeDialogOpen(false)
+                    }}
+                    options={linkParentTypes}/>
             </div>
         </div>
     );
