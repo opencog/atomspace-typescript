@@ -5,6 +5,8 @@ export enum OpenCogJSONAPIActionTypes {
    SET_FETCHING = "SET_FETCHING",
    SET_ATOMS = "SET_ATOMS",
    SET_TYPES = "SET_TYPES",
+   SET_NODE_PARENT_TYPES = "SET_NODE_PARENT_TYPES",
+   SET_LINK_PARENT_TYPES = "SET_LINK_PARENT_TYPES",
    SET_JSON_API_VERSION = "SET_JSON_API_VERSION",
 }
 
@@ -14,7 +16,6 @@ export interface IOpenCogSetFetchingAction  {
    command?: APICommands;
    isFetching?: boolean;
 }
-
 // Action creator function
 export const OpenCogSetFetchingAction = (isFetching?: boolean, command?: APICommands) => {
    return {
@@ -24,16 +25,36 @@ export const OpenCogSetFetchingAction = (isFetching?: boolean, command?: APIComm
    }
 }
 
-
 export interface IOpenCogSetAtomsAction {
    type: OpenCogJSONAPIActionTypes.SET_ATOMS;
    atoms: AtomBase[];
 }
-
 export const OpenCogSetAtomsAction = (atoms: AtomBase[]) => {
    return {
       type: OpenCogJSONAPIActionTypes.SET_ATOMS,
       atoms: atoms,
+   }
+}
+
+export interface IOpenCogSetNodeParentTypesAction {
+   type: OpenCogJSONAPIActionTypes.SET_NODE_PARENT_TYPES;
+   nodeParentTypes: string[];
+}
+export const OpenCogSetNodeParentTypesAction = (nodeParentTypes: string[]) => {
+   return {
+      type: OpenCogJSONAPIActionTypes.SET_NODE_PARENT_TYPES,
+      nodeParentTypes: nodeParentTypes,
+   }
+}
+
+export interface IOpenCogSetLinkParentTypesAction {
+   type: OpenCogJSONAPIActionTypes.SET_LINK_PARENT_TYPES;
+   linkParentTypes: string[];
+}
+export const OpenCogSetLinkParentTypesAction = (linkParentTypes: string[]) => {
+   return {
+      type: OpenCogJSONAPIActionTypes.SET_LINK_PARENT_TYPES,
+      nodeParentTypes: linkParentTypes
    }
 }
 
@@ -66,5 +87,7 @@ export const OpenCogSetJSONAPIVersion = (version:string ) => {
 export type OpenCogJSONAPIActions =
     IOpenCogSetAtomsAction
     | IOpenCogSetTypesAction
+    | IOpenCogSetNodeParentTypesAction
+    | IOpenCogSetLinkParentTypesAction
     | IOpenCogSetJSONAPIVersion
     | IOpenCogSetFetchingAction;

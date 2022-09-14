@@ -7,7 +7,8 @@ import {APICommands, AtomBase} from "../../services/OpenCogAPI";
 export interface OpenCogJSONAPIState {
     isFetching: boolean;
     subTypes: string[];
-    parentTypes: string[];
+    linkParentTypes: string[];
+    nodeParentTypes: string[];
     previousCommand: APICommands;
     atoms: AtomBase[];
     JSONAPIVersion: string;
@@ -16,7 +17,8 @@ export interface OpenCogJSONAPIState {
 const initialOpenCogJSONAPIState: OpenCogJSONAPIState = {
     isFetching: false,
     subTypes: [],
-    parentTypes: [],
+    linkParentTypes: [],
+    nodeParentTypes: [],
     atoms: [],
     previousCommand: APICommands.None,
     JSONAPIVersion: "",
@@ -43,6 +45,16 @@ export const OpenCogJSONAPIReducer: Reducer<OpenCogJSONAPIState, OpenCogJSONAPIA
             return {
                 ...state,
                 atoms: newArray,
+            }
+        case OpenCogJSONAPIActionTypes.SET_NODE_PARENT_TYPES:
+            return {
+                ...state,
+                parentTypes: action.nodeParentTypes,
+            }
+        case OpenCogJSONAPIActionTypes.SET_LINK_PARENT_TYPES:
+            return {
+                ...state,
+                parentTypes: action.linkParentTypes,
             }
         case OpenCogJSONAPIActionTypes.SET_TYPES:
             return {

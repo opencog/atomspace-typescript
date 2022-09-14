@@ -35,6 +35,12 @@ import LinkAtomEdge from "./components/LinkAtomEdge/LinkAtomEdge";
 import {generateTypeClassMap} from "./App.controller";
 import {AtomspaceVisualizerSetTypesClassesAction} from "./redux/actions/AtomspaceVisualizerActions";
 import {RootState} from "./redux/store";
+import {
+    OpenCogJSONAPIActionTypes,
+    OpenCogSetLinkParentTypesAction,
+    OpenCogSetNodeParentTypesAction
+} from "./redux/actions/OpenCogJSONAPIActions";
+import {OpenCogJSONAPIState} from "./redux/reducers/OpenCogJSONAPIReducer";
 
 export const atomNodeTypes = {
     linkAtomNode: LinkAtomNode,
@@ -49,12 +55,14 @@ export const App = ()=> {
     const dispatch = useDispatch();
     const reactFlowInstance = useReactFlow();
     const TypesClasses = useSelector((state:RootState) => state.atomspaceVisualizerState.typesClasses);
+    const LinkParentTypes = useSelector((state:RootState) => state.openCogState.linkParentTypes)
+    const NodeParentTypes = useSelector((state:RootState) => state.openCogState.nodeParentTypes)
+
     const [isConnected, setIsConnected] = useState(false);
     const [sendReadyState, setSendReadyState] = useState(false);
     const [consoleLines, setConsoleLines] = useState([""]);
     const [inputtedMessage, setInputtedMessage] = useState('');
-    const [linkParentTypes, setLinkParentTypes] = useState<string[]>([])
-    const [nodeParentTypes, setNodeParentTypes] = useState<string[]>([])
+
     const [linkChildLookup, setLinkChildLoopup] = useState(new Map<string,string>())
     const [nodeChildLookup, setNodeChildLoopup] = useState(new Map<string,string>())
     //Note this is not the most efficient way to store these, but it does allow for efficient querying of supertypes
@@ -106,7 +114,7 @@ export const App = ()=> {
 
     const getNodeTypes = async ()  => {
         let returnedNodeParentTypes = await OpenCogAPI.getSubTypes(addConsoleLine, "Node", false)
-        setNodeParentTypes(returnedNodeParentTypes);
+        dispatch(OpenCogSetNodeParentTypesAction(returnedNodeParentTypes));
         let buildNodeChildLookup = new Map<string, string>();
         for (let parentType of returnedNodeParentTypes) {
             buildNodeChildLookup.set(parentType, parentType)
@@ -120,7 +128,7 @@ export const App = ()=> {
     }
     const getLinkTypes = async () => {
         let returnedLinkParentTypes = await OpenCogAPI.getSubTypes(addConsoleLine, "Link", false);
-        setLinkParentTypes(returnedLinkParentTypes);
+        dispatch(OpenCogSetLinkParentTypesAction(returnedLinkParentTypes));
         let buildLinkChildLookup = new Map<string,string>();
         for(let parentType of returnedLinkParentTypes){
             buildLinkChildLookup.set(parentType,parentType)
@@ -539,13 +547,13 @@ export const App = ()=> {
                     </Controls>
                     <Legend
                     className={"legendContainerParents"}
-                    nodeTypeList={nodeParentTypes}
-                    linkTypeList={linkParentTypes}
+                    nodeTypeList={NodeParentTypes}
+                    linkTypeList={LinkParentTypes}
                     />
                     <Legend
                         className={"legendContainerChildren"}
-                        nodeTypeList={nodeParentTypes}
-                        linkTypeList={linkParentTypes}
+                        nodeTypeList={NodeParentTypes}
+                        linkTypeList={LinkParentTypes}
                     />
                 </ReactFlow>
                 <LinkTypeDialog
@@ -557,7 +565,7 @@ export const App = ()=> {
                         await createLinkAndGetAtomSpace(value);
                         setIsLinkTypeDialogOpen(false)
                     }}
-                    options={linkParentTypes}/>
+                    options={LinkParentTypes}/>
             </div>
         </div>
     );
