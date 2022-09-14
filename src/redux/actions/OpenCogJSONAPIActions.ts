@@ -54,7 +54,7 @@ export interface IOpenCogSetLinkParentTypesAction {
 export const OpenCogSetLinkParentTypesAction = (linkParentTypes: string[]) => {
    return {
       type: OpenCogJSONAPIActionTypes.SET_LINK_PARENT_TYPES,
-      nodeParentTypes: linkParentTypes
+      linkParentTypes: linkParentTypes
    }
 }
 

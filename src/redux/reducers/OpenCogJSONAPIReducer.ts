@@ -2,6 +2,8 @@
 import {Reducer} from 'redux'
 import {OpenCogJSONAPIActions, OpenCogJSONAPIActionTypes} from '../actions/OpenCogJSONAPIActions'
 import {APICommands, AtomBase} from "../../services/OpenCogAPI";
+import {TypesClass} from "../../util/EdgeTypesStyle";
+import {node} from "prop-types";
 
 
 export interface OpenCogJSONAPIState {
@@ -47,14 +49,16 @@ export const OpenCogJSONAPIReducer: Reducer<OpenCogJSONAPIState, OpenCogJSONAPIA
                 atoms: newArray,
             }
         case OpenCogJSONAPIActionTypes.SET_NODE_PARENT_TYPES:
+            let newNodeParentTypes = action.nodeParentTypes;
             return {
                 ...state,
-                parentTypes: action.nodeParentTypes,
+                nodeParentTypes: newNodeParentTypes,
             }
         case OpenCogJSONAPIActionTypes.SET_LINK_PARENT_TYPES:
+            let newLinkParentTypes = action.linkParentTypes;
             return {
                 ...state,
-                parentTypes: action.linkParentTypes,
+                linkParentTypes: newLinkParentTypes,
             }
         case OpenCogJSONAPIActionTypes.SET_TYPES:
             return {

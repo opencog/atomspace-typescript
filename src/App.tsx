@@ -5,7 +5,7 @@ import TableRow from "@mui/material/TableRow";
 import TableCell from "@mui/material/TableCell";
 import TableBody from "@mui/material/TableBody";
 import TableContainer from "@mui/material/TableContainer";
-import {TableFooter} from "@mui/material";
+import {Popover, TableFooter} from "@mui/material";
 import {APICommands, OpenCogAPI} from "./services/OpenCogAPI";
 import { useDispatch, useSelector } from 'react-redux';
 import ReactFlow, {
@@ -27,7 +27,6 @@ import "./css/edgeStyles.css"
 import TypesClasses, {SeedColors, TypesClass} from "./util/EdgeTypesStyle";
 import {ReactComponent as AtomIcon} from './icons/atom-bold.svg';
 
-import Legend from "./components/Legend/Legend";
 import LinkTypeDialog from "./components/LinkTypeDialog/LinkTypeDialog";
 import NodeAtomNode from "./components/NodeAtomNode/NodeAtomNode";
 import LinkAtomNode from "./components/LinkAtomNode/LinkAtomNode";
@@ -41,6 +40,7 @@ import {
     OpenCogSetNodeParentTypesAction
 } from "./redux/actions/OpenCogJSONAPIActions";
 import {OpenCogJSONAPIState} from "./redux/reducers/OpenCogJSONAPIReducer";
+import NodeTypePopover from "./components/NodeTypePopover/NodeTypePopover";
 
 export const atomNodeTypes = {
     linkAtomNode: LinkAtomNode,
@@ -91,6 +91,16 @@ export const App = ()=> {
     const [selectLinkType, setSelectLinkType] = useState({
         open: false,
         value: "ListLink",
+    })
+
+    const [popoverState, setPopoverState] = useState<{
+        open: boolean,
+        location: any,
+        atomType: string,
+    }>({
+        open: false,
+        location: null,
+        atomType: "",
     })
 
     const addConsoleLine = (newLine: string) => {
@@ -154,6 +164,17 @@ export const App = ()=> {
         })
     }
 
+    const checkTypes = () =>{
+        console.log("Link Parent Types: ")
+        LinkParentTypes.forEach((value,key) => {
+                console.log(`Type: ${value}`)
+        })
+        console.log("Node Parent Types: ")
+        NodeParentTypes.forEach((value,key) => {
+            console.log(`Type: ${value}`)
+        })
+    }
+
     const setNodes = (nodes: Node[]) => {
         const layoutedElements = getLayoutedElements(nodes, edges);
         setNodesState(layoutedElements.nodes);
@@ -164,7 +185,25 @@ export const App = ()=> {
     };
 
     const onNodeMouseEnter = useCallback((event: React.MouseEvent, node: Node) => {
-        console.log(node.data.atomType)
+        setPopoverState(
+            {
+                open: true,
+                location: event.target,
+                atomType: node.data.atomObj.type,
+            }
+        )
+        },
+        []
+    )
+
+    const onNodeMouseLeave = useCallback((event: React.MouseEvent, node: Node) => {
+            setPopoverState(
+                {
+                    open: false,
+                    location: null,
+                    atomType: "",
+                }
+            )
         },
         []
     )
@@ -245,7 +284,6 @@ export const App = ()=> {
         });
         (linkAtoms as AtomLink[]).forEach((link:AtomLink, index:number, array:AtomBase[])=>{
             let linkId = `${link.type}:${link.outgoing[0].name},${link.outgoing[1].name}`
-            console.log("Link Child Type: "+linkChildLookup.get(link.type))
             let newNode = { id: linkId, type: "linkAtomNode" ,data: { label: `${link.type}, Links: ${link.outgoing.length}`, atomType: linkChildLookup.get(link.type), atomObj: link}, position: { x: 100, y: 100 }};
             link.outgoing.forEach((linkNode, index:number )=> {
 
@@ -515,11 +553,11 @@ export const App = ()=> {
                     Check Colors
                 </button>
                 <button
-                    onClick={ViewportLogger}
+                    onClick={event => checkTypes()}
                     disabled={!sendReadyState}
                     style={{ width:"90px" }}
                 >
-                    ViewportLogger
+                    Check Types
                 </button>
             </div>
             <div style={{ height: 600, border: '3px solid rgba(0, 0, 0, .85)' , marginTop: 5}}>
@@ -527,6 +565,7 @@ export const App = ()=> {
 
                 <ReactFlow
                     onNodeMouseEnter={onNodeMouseEnter}
+                    onNodeMouseLeave={onNodeMouseLeave}
                     nodes={nodes}
                     edges={edges}
                     onNodesChange={onNodesChange}
@@ -542,18 +581,9 @@ export const App = ()=> {
                         <ControlButton onClick={() => console.log('action')}>
                             <AtomIcon />
                         </ControlButton>
-
-
                     </Controls>
-                    <Legend
-                    className={"legendContainerParents"}
-                    nodeTypeList={NodeParentTypes}
-                    linkTypeList={LinkParentTypes}
-                    />
-                    <Legend
-                        className={"legendContainerChildren"}
-                        nodeTypeList={NodeParentTypes}
-                        linkTypeList={LinkParentTypes}
+                    <NodeTypePopover
+                        popoverState = {popoverState}
                     />
                 </ReactFlow>
                 <LinkTypeDialog
