@@ -197,7 +197,6 @@ export const App = ()=> {
     )
 
     const onNodeMouseLeave = useCallback((event: React.MouseEvent, node: Node) => {
-            //event.stopPropagation()
             setPopoverState(
                 {
                     open: false,
