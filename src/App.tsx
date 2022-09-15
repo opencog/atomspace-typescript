@@ -185,27 +185,28 @@ export const App = ()=> {
     };
 
     const onNodeMouseEnter = useCallback((event: React.MouseEvent, node: Node) => {
-        setPopoverState(
-            {
-                open: true,
-                location: event.target,
-                atomType: node.data.atomObj.type,
-            }
-        )
-        },
-        []
-    )
-
-    const onNodeMouseLeave = useCallback((event: React.MouseEvent, node: Node) => {
             setPopoverState(
                 {
-                    open: false,
-                    location: null,
-                    atomType: "",
+                    open: true,
+                    location: event.currentTarget,
+                    atomType: node.data.atomObj.type,
                 }
             )
         },
-        []
+        [popoverState]
+    )
+
+    const onNodeMouseLeave = useCallback((event: React.MouseEvent, node: Node) => {
+            //event.stopPropagation()
+            setPopoverState(
+                {
+                    open: false,
+                    location: event.currentTarget,
+                    atomType: node.data.atomObj.type,
+                }
+            )
+        },
+        [popoverState]
     )
 
     const onNodesChange = useCallback(
