@@ -37,8 +37,9 @@ export class OpenCogAPI {
     static api: OpenCogAPI;
 
     constructor() {
-        this.websocket = new WebSocket('ws://192.168.10.2:18080/json');
-        //this.scmWebsocket = new WebSocket('ws://localhost:18080/scm')
+        // this.websocket = new WebSocket('ws://192.168.10.2:18080/json');
+        this.websocket = new WebSocket('ws://localhost:18080/json')
+        // this.scmWebsocket = new WebSocket('ws://localhost:18080/scm')
     }
 
     static getSocket() {

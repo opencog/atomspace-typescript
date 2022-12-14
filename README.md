@@ -2,29 +2,67 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
-## Available Scripts
+## Prerequisites
+First, install `npm`. Then
+```
+npm install react-scripts
+```
+
+## Start the CogServer
+Like so:
+```
+$ guile
+> (use-modules (opencog) (opencog cogserver))
+> (start-cgoserver)
+```
+
+Verify that the cogserver is running: use a browser and open the default
+URL [http://localhost:18080](http://localhost:18080) to view the
+CogServer status page.
+
+Configure typescript.  Edit `src/services/OpenCogAPI.ts` and verify that
+the URL reflects where your CogServer JSON shell actually is. The default
+location is `ws://localhost:18080/json`. If you are running the
+CogServer in a container, you will need to change the address from
+`localhost` to the container addr.
+
+Run this app: `npm start`. This runs the app in the development mode.
+Open [http://localhost:3000](http://localhost:3000) to view it in the
+browser.  The page will reload if you make edits.  You will also see
+lint errors in the console.
+
+Create some Atoms in the browser. Verify that they have appeared in the
+AtomSpace. This can be done at the `guile` prompt:
+```
+guile> (cog-prt-atomspace)
+... stuff should print...
+guile> (cog-report-counts)
+... summary report ...
+```
+
+Create some Atoms in the AtomSpace:
+```
+guile> (Evaluation (Predicate "mars") (List (Concept "martian") (Concept "rock")))
+```
+
+Pull them into the browser by clicking on "Get Atoms".
+
+## Other Available Scripts
 
 In the project directory, you can run:
 
-### `npm start`
-
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
-
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
-
 ### `npm test`
 
-Launches the test runner in the interactive watch mode.\
+Launches the test runner in the interactive watch mode.
 See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
 ### `npm run build`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Builds the app for production to the `build` folder.
+It correctly bundles React in production mode and optimizes
+the build for the best performance.
 
-The build is minified and the filenames include the hashes.\
+The build is minified and the filenames include the hashes.
 Your app is ready to be deployed!
 
 See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
